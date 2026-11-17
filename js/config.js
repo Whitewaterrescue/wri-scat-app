@@ -6,7 +6,7 @@ var CONFIG = {
   //   localStorage.setItem('wri_scat_dev_api', '<other /exec URL>')   (remove the key to go back).
   SCAT_API: (function () {
     try { return (typeof localStorage !== 'undefined' && localStorage.getItem('wri_scat_dev_api')) || ''; } catch (e) { return ''; }
-  })() || 'https://script.google.com/macros/s/AKfycbz2Ai8O1SJqMxC38itPAd2gGOgM8eW-pZcpTzBEKct8xXJFRQVPQHPOGqMzSqrfwtVt/exec',
+  })() || 'https://script.google.com/macros/s/AKfycbygidtkjG9T2i10urtbGE3ewz3v0fZ83_ktZeVJLcYqrE-41PCHX92_86ofLf75IRaK/exec',
   // Open incidents come from the Recon Apps Script's config call (read-only, same list every WRI field app
   // uses) until the SCAT API serves them through WRIServiceLib.
   API_URL: 'https://script.google.com/macros/s/AKfycbzJ9Jniz2PZ99rShnFHT_mtsug92C7W4RiOwh7hTDc2SUIBnrsSxuzcie1Y1yfRcne1/exec',
