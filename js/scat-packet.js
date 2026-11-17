@@ -10,7 +10,7 @@
  * plus tombstones for rows that left `active`. Thumbnails are fetched one at a time, only when a screen
  * shows them (scat_thumb), and kept per file id (kv thumb_<id>) so a segment opened once works offline.
  *
- * Needs the SCAT PIN (the same scoped PIN the outbox uses) and signal. Nothing here writes to the server.
+ * Needs the incident PIN (the same scoped PIN the outbox uses) and signal. Nothing here writes to the server.
  */
 (function (g) {
   var SCOPE = 'scat', STALE_MS = 2 * 60000;
@@ -34,7 +34,7 @@
     lastErr = null;
     syncing = Promise.all([load(inc), pin(), Store.deviceId()]).then(function (a) {
       var prev = a[0], p = a[1], device = a[2];
-      if (!p) throw Object.assign(new Error('Enter the SCAT PIN to pull the segment packet.'), { code: 'pin_missing' });
+      if (!p) throw Object.assign(new Error('Enter the incident PIN to pull the segment packet.'), { code: 'pin_missing' });
       var payload = { pin: p, device: device, incident_id: inc };
       if (prev && prev.fetched_at && !full) payload.since = prev.fetched_at;
       return Api.post('scat_packet', payload, 60000, CONFIG.SCAT_API).then(function (d) { return merge(inc, prev, d); });
@@ -77,7 +77,7 @@
       if (t) return t;
       if (!navigator.onLine) throw Object.assign(new Error('No signal'), { offline: true });
       return Promise.all([pin(), Store.deviceId()]).then(function (a) {
-        if (!a[0]) throw Object.assign(new Error('No SCAT PIN'), { code: 'pin_missing' });
+        if (!a[0]) throw Object.assign(new Error('No incident PIN'), { code: 'pin_missing' });
         return Api.post('scat_thumb', { pin: a[0], device: a[1], file_id: fileId }, 45000, CONFIG.SCAT_API);
       }).then(function (t2) {
         var small = { mime: t2.mime || 'image/jpeg', base64: t2.base64 };

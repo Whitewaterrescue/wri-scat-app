@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
-  <link rel="stylesheet" href="css/app.css?v=2026-10-30-2">
+  <link rel="stylesheet" href="css/app.css?v=2026-11-17-1">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
 <body>
@@ -35,10 +35,10 @@
     <div class="sprog"><div id="scProg" style="width:10%"></div></div>
     <div class="phasebar hidden" id="scPhaseBar"><span id="scPhaseName"></span> <button class="link" id="scPhaseChange" type="button">change</button></div>
     <div class="hint" id="scApiStatus"></div>
-    <!-- SCAT's own PIN (FORM_KINDS.scat.pin_scope): the incident Gateway PIN is never sent to the SCAT API -->
+    <!-- SCAT PIN box (FORM_KINDS.scat.pin_scope): holds the incident Gateway PIN, checked by the SCAT API like Recon -->
     <div class="card hidden" id="scPinBox">
-      <b id="scPinMsg">Enter the SCAT PIN.</b> SCAT records upload with it.
-      <div class="row" style="margin-top:8px"><input id="scPinInput" inputmode="numeric" autocomplete="off" placeholder="SCAT PIN"><button class="btn btn-next" id="scPinBtn" type="button" style="flex:0 0 auto">Save</button></div>
+      <b id="scPinMsg">Enter the incident PIN.</b> SCAT records upload with it.
+      <div class="row" style="margin-top:8px"><input id="scPinInput" inputmode="numeric" autocomplete="off" placeholder="Incident PIN"><button class="btn btn-next" id="scPinBtn" type="button" style="flex:0 0 auto">Save</button></div>
     </div>
 
     <!-- Screen: phase chooser (shown until the phone has a phase; sticky after) -->
@@ -281,12 +281,12 @@
   <div class="toast hidden" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script src="js/config.js?v=2026-10-30-2"></script>
-  <script src="js/store.js?v=2026-10-30-2"></script>
-  <script src="js/api.js?v=2026-10-30-2"></script>
-  <script src="js/outbox.js?v=2026-10-30-2"></script>
-  <script src="js/forms.js?v=2026-10-30-2"></script>
-  <script src="js/shell.js?v=2026-10-30-2"></script>
+  <script src="js/config.js?v=2026-11-17-1"></script>
+  <script src="js/store.js?v=2026-11-17-1"></script>
+  <script src="js/api.js?v=2026-11-17-1"></script>
+  <script src="js/outbox.js?v=2026-11-17-1"></script>
+  <script src="js/forms.js?v=2026-11-17-1"></script>
+  <script src="js/shell.js?v=2026-11-17-1"></script>
   <!-- Reference photos (NOAA job aid): one sheet shared by every tile screen; see ref/README.md -->
   <div class="refsheet hidden" id="scRefSheet">
     <div class="refpanel">
@@ -295,9 +295,9 @@
       <div class="refcredit" id="scRefCredit"></div>
     </div>
   </div>
-  <script src="js/scat-ref.js?v=2026-10-30-2"></script>
-  <script src="js/scat-packet.js?v=2026-10-30-2"></script>
-  <script src="js/scat-ui.js?v=2026-10-30-2"></script>
+  <script src="js/scat-ref.js?v=2026-11-17-1"></script>
+  <script src="js/scat-packet.js?v=2026-11-17-1"></script>
+  <script src="js/scat-ui.js?v=2026-11-17-1"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });

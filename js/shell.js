@@ -98,7 +98,7 @@
       var waiting = s.queued, bn = $('banner');
       $('savedCount').textContent = (waiting + s.needs_pin_scoped + s.failed) ? '(' + (waiting + s.needs_pin_scoped + s.failed) + ')' : '';
       bn.className = 'banner';
-      if (s.needs_pin_scoped) { bn.classList.add('red'); bn.textContent = s.needs_pin_scoped + ' saved record(s) waiting for the SCAT PIN — enter it below'; bn.dataset.act = 'pin'; }
+      if (s.needs_pin_scoped) { bn.classList.add('red'); bn.textContent = s.needs_pin_scoped + ' saved record(s) waiting for the incident PIN — enter it below'; bn.dataset.act = 'pin'; }
       else if (s.failed) { bn.classList.add('red'); bn.textContent = s.failed + ' saved record(s) need attention — tap to see'; bn.dataset.act = 'list'; }
       else if (waiting) {
         bn.classList.add('amber');
@@ -114,7 +114,7 @@
       $('savedList').innerHTML = rs.map(function (r) {
         var sent = r.photos.filter(function (p) { return p.status === 'sent'; }).length, st, cls;
         if (r.status === 'sent') { cls = 'green'; st = 'Uploaded' + (r.photos_failed ? ' — ' + r.photos_failed + ' photo(s) could not upload' : ''); }
-        else if (r.status === 'needs_pin') { cls = 'red'; st = 'Waiting for the SCAT PIN'; }
+        else if (r.status === 'needs_pin') { cls = 'red'; st = 'Waiting for the incident PIN'; }
         else if (r.status === 'failed') { cls = 'red'; st = r.last_error || 'Could not upload'; }
         else {
           cls = 'amber';

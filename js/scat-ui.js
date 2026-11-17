@@ -21,8 +21,8 @@
  * are cached on the phone (kv 'cfg_scat'). The crew sees "NOAA base B, inland C (why)".
  *
  * Same rules as Recon: saved on the phone first (Outbox.enqueue with photos), uploaded when
- * there's signal, one photo per request. Server: the SCAT Ops API (CONFIG.SCAT_API, repo
- * WRIJack/wri-scat-ops, Api.js): scat_submit then scat_photo, PIN-gated, idempotent by id.
+ * there's signal, one photo per request. Server: the SCAT API (CONFIG.SCAT_API, repo
+ * Whitewaterrescue/wri-scat-shoreline, gas/ScatApi.gs): scat_submit then scat_photo, PIN-gated, idempotent by id.
  * Built for crews that are not WRI staff: the incident PIN is the only gate.
  */
 (function () {
@@ -575,7 +575,7 @@
     var latest = pk && pk.latest_survey && b && pk.latest_survey.uuid !== b.uuid ? pk.latest_survey : null;
     var status = window.ScatPacket && ScatPacket.status(F.segment);
     if (!pk) {
-      html = '<div class="pk"><div class="pk-h">Nothing on this phone for ' + A.esc(F.segment) + '</div><div class="pk-note">No survey or treatment recommendation has been pulled down for this segment. Go back and pull the packet (needs signal and the SCAT PIN), or carry on: the generic criteria still apply.</div></div>';
+      html = '<div class="pk"><div class="pk-h">Nothing on this phone for ' + A.esc(F.segment) + '</div><div class="pk-note">No survey or treatment recommendation has been pulled down for this segment. Go back and pull the packet (needs signal and the incident PIN), or carry on: the generic criteria still apply.</div></div>';
     } else {
       html += '<div class="pk-meta" style="margin-bottom:8px">Segment status: <b>' + A.esc(segStatusLabel(F.segment)) + '</b></div>';
       if (st) {
@@ -974,7 +974,7 @@
     Outbox.list().then(function (rs) {
       var r = rs.filter(function (x) { return x.recon_id === done.id; })[0];
       var st = !r ? '' : r.status === 'sent' ? 'Uploaded' + (r.photos_failed ? ', ' + r.photos_failed + ' photo(s) failed' : '') + '.'
-        : r.status === 'needs_pin' ? 'Waiting for the SCAT PIN (enter it at the top of this tab).'
+        : r.status === 'needs_pin' ? 'Waiting for the incident PIN (enter it at the top of this tab).'
         : r.status === 'failed' ? 'Could not upload: ' + (r.last_error || '') + ' See "Saved" at the top.'
         : navigator.onLine ? 'Uploading now…' + (r.submitted ? ' record is up, photos sending.' : '') : 'No signal: it uploads by itself when you are back in coverage.';
       $('scDoneSub').textContent = st;
@@ -1017,7 +1017,7 @@
     Promise.all([Outbox.scopedPinFor(SCOPE), Outbox.needsScopedPin(SCOPE)]).then(function (a) {
       var show = !a[0] || a[1] > 0;
       $('scPinBox').classList.toggle('hidden', !show);
-      if (show) $('scPinMsg').textContent = a[1] > 0 ? 'The SCAT PIN is wrong or has changed: ' + a[1] + ' record(s) are waiting. Enter the current SCAT PIN.' : 'Enter the SCAT PIN.';
+      if (show) $('scPinMsg').textContent = a[1] > 0 ? 'The incident PIN is wrong or has changed: ' + a[1] + ' record(s) are waiting. Enter the current incident PIN.' : 'Enter the incident PIN.';
     });
   }
   function submitScatPin() {
@@ -1026,7 +1026,7 @@
     if (!navigator.onLine) { done(); A.toast('PIN saved. It is checked when you are back in signal.'); return; }
     A.busy(b, true, 'Checking…');
     Store.deviceId().then(function (device) { return Api.post('pin', { pin: pin, device: device }, 20000, CONFIG.SCAT_API); }).then(function () {
-      A.busy(b, false); A.toast('SCAT PIN accepted.');
+      A.busy(b, false); A.toast('Incident PIN accepted.');
       return done().then(function () { if (F && F.phase === 'endpoint' && S.incident) syncPacket(); });
     }, function (e) {
       A.busy(b, false);
