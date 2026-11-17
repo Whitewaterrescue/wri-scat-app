@@ -301,7 +301,7 @@
         .concat(ids.filter(function (id) { return !have[id]; }).map(function (id) { return { segment_id: id, label: '', lat: null, lon: null }; }));
     }
     if (ep && F.lat == null) all.sort(function (a, b) { return a.segment_id.localeCompare(b.segment_id); });   // no fix yet: by id
-    var hits = q ? all.filter(function (s) { return (s.segment_id + ' ' + (s.label || '')).toLowerCase().indexOf(q) >= 0; }) : all.slice();
+    var hits = q ? all.filter(function (s) { return (s.segment_id + ' ' + (s.name || '') + ' ' + (s.label || '')).toLowerCase().indexOf(q) >= 0; }) : all.slice();
     // nearest first when the phone has a fix and the segments carry a point (Caleb's layer, or lat/lon in the tab)
     if (F.lat != null) {
       hits.forEach(function (s) { s._d = s.lat != null ? distM(F.lat, F.lon, s.lat, s.lon) : null; });
@@ -312,7 +312,7 @@
       var on = s.segment_id === F.segment;
       var far = s._d != null && F.lat != null ? (s._d < 950 ? Math.round(s._d / 10) * 10 + ' m away' : (s._d / 1000).toFixed(1) + ' km away') : '';
       var sub = ep ? [epSegSub(s.segment_id), far].filter(Boolean).join(' · ') : [s.label || '', far].filter(Boolean).join(' · ');
-      return '<button type="button" class="tile seg' + (on ? ' sel' : '') + '" data-id="' + A.esc(s.segment_id) + '"><span>' + A.esc(s.segment_id) +
+      return '<button type="button" class="tile seg' + (on ? ' sel' : '') + '" data-id="' + A.esc(s.segment_id) + '"><span>' + A.esc(s.name || s.segment_id) +
         '<small>' + A.esc(sub) + '</small></span>' + (on ? '<span class="ck">✓</span>' : '') + '</button>';
     }).join('') || (all.length ? '<div class="hint">No segment matches. Keep typing, or use what you typed.</div>'
                    : ep && !F._allSegs ? '<div class="hint">No surveyed segments on this phone yet. Pull the packet above, or show all segments.</div>'
@@ -321,7 +321,7 @@
     $('scSegAll').textContent = F._allSegs ? 'Show only surveyed segments' : 'Show all segments';
     $('scSegTyped').classList.toggle('hidden', !q || hits.some(function (s) { return s.segment_id.toLowerCase() === q; }));
     $('scSegPicked').classList.toggle('hidden', !F.segment || hits.some(function (s) { return s.segment_id === F.segment; }));
-    $('scSegPicked').innerHTML = F.segment ? 'Segment <b>' + A.esc(F.segment) + '</b>' + (F.segmentLabel ? ' · ' + A.esc(F.segmentLabel) : '') +
+    $('scSegPicked').innerHTML = F.segment ? 'Segment <b>' + A.esc(segName(F.segment)) + '</b>' + (F.segmentLabel ? ' · ' + A.esc(F.segmentLabel) : '') +
       ' <button class="link" type="button" id="scSegClear">change</button>' : '';
   }
   /** Picker subtext in the Endpoint phase: status, when surveyed, the STR revision, the last review. */
@@ -349,6 +349,12 @@
     if (F.segment && s && s.bank && !F.bank) F.bank = s.bank;
     $('scSegSearch').value = '';
     renderWhere();
+    if (F.segment) setTimeout(function () { zoomToSeg(F.segment); }, 80);
+  }
+  /** Readable name (YEL-7.0-LB-A) for a segment key; the key itself when the list doesn't know it. */
+  function segName(id) {
+    var s = segments().filter(function (x) { return x.segment_id === id; })[0];
+    return (s && s.name) || id;
   }
   function renderWhere() {
     $('scWhereQ').innerHTML = F.phase === 'endpoint' ? 'Which segment are you reviewing?<small>Use your location to sort the list, then tap the segment.</small>'
@@ -359,7 +365,47 @@
     $('scBankBox').classList.toggle('hidden', F.phase !== 'recon');
     tiles($('scBank'), list('bank_side'), F.bank, false, null, 'blue');
     renderMine();
-    setTimeout(function () { initMap(); if (map) map.invalidateSize(); }, 50);
+    setTimeout(function () { initMap(); if (map) { map.invalidateSize(); drawSegLines(); } }, 50);
+  }
+  // ---------- segment lines on the map (WRI fork 2026-11-17: see + tap a segment, zoom to the pick) ----------
+  var segLayer = null, segFitted = false;
+  var BANK_COL = { LB: '#4fc3f7', RB: '#ff8a65', MC: '#ce93d8' };
+  function visibleSegs() {
+    var inc = S.incident && S.incident.incident_id;
+    return segments().filter(function (s) {
+      return s.path && s.path.length && (!s.incident_id || !inc || String(s.incident_id) === String(inc));
+    });
+  }
+  function drawSegLines() {
+    if (!map || typeof L === 'undefined') return;
+    if (segLayer) map.removeLayer(segLayer);
+    segLayer = L.layerGroup();
+    var segs = visibleSegs(), picked = null;
+    segs.forEach(function (s) {
+      var on = s.segment_id === F.segment;
+      var ln = L.polyline(s.path, { color: on ? '#ffffff' : (BANK_COL[s.bank] || '#ffd54f'), weight: on ? 8 : 5,
+                                    opacity: 0.95, bubblingMouseEvents: false });
+      ln.bindTooltip(s.name || s.segment_id, { sticky: true });
+      ln.on('click', function () { if (F.segment !== s.segment_id) pickSegment(s.segment_id); });
+      segLayer.addLayer(ln);
+      if (on) picked = ln;
+    });
+    segLayer.addTo(map);
+    if (picked) picked.bringToFront();
+    // first view with no GPS fix and nothing picked: show where the segments are
+    if (!segFitted && F.lat == null && !F.segment && segs.length) {
+      segFitted = true;
+      var b = L.latLngBounds([]);
+      segs.forEach(function (s) { s.path.forEach(function (part) { b.extend(part); }); });
+      if (b.isValid()) map.fitBounds(b, { padding: [20, 20], maxZoom: 15 });
+    }
+  }
+  function zoomToSeg(id) {
+    var s = segments().filter(function (x) { return x.segment_id === id; })[0];
+    if (!map || !s || !s.path || !s.path.length) return;
+    var b = L.latLngBounds([]);
+    s.path.forEach(function (part) { b.extend(part); });
+    if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 17 });
   }
   // ---------- map (tap to drop or move the point; same tiles as the Recon map) ----------
   var map = null, marker = null;
@@ -575,7 +621,7 @@
     var latest = pk && pk.latest_survey && b && pk.latest_survey.uuid !== b.uuid ? pk.latest_survey : null;
     var status = window.ScatPacket && ScatPacket.status(F.segment);
     if (!pk) {
-      html = '<div class="pk"><div class="pk-h">Nothing on this phone for ' + A.esc(F.segment) + '</div><div class="pk-note">No survey or treatment recommendation has been pulled down for this segment. Go back and pull the packet (needs signal and the incident PIN), or carry on: the generic criteria still apply.</div></div>';
+      html = '<div class="pk"><div class="pk-h">Nothing on this phone for ' + A.esc(segName(F.segment)) + '</div><div class="pk-note">No survey or treatment recommendation has been pulled down for this segment. Go back and pull the packet (needs signal and the incident PIN), or carry on: the generic criteria still apply.</div></div>';
     } else {
       html += '<div class="pk-meta" style="margin-bottom:8px">Segment status: <b>' + A.esc(segStatusLabel(F.segment)) + '</b></div>';
       if (st) {
@@ -863,7 +909,7 @@
   }
   function renderReview() {
     var sk = F.skipped, html = row('Incident', S.incident ? S.incident.project_key + ' · ' + S.incident.client_name : '') +
-      row('Segment', (F.segment || 'none') + (F.bank ? ' · ' + label('bank_side', F.bank) : '')) +
+      row('Segment', (F.segment ? segName(F.segment) : 'none') + (F.bank ? ' · ' + label('bank_side', F.bank) : '')) +
       row('Location', F.lat != null ? F.lat.toFixed(6) + ', ' + F.lon.toFixed(6) + (F.acc != null ? ' ± ' + F.acc + ' m' : '') : '');
     if (F.phase === 'recon') {
       html += row('Oil', F.oil ? label('oil_present', F.oil) : '', sk.oil) +
