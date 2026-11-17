@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
-  <link rel="stylesheet" href="css/app.css?v=2026-11-17-4">
+  <link rel="stylesheet" href="css/app.css?v=2026-11-17-5">
 </head>
 <body>
   <header class="header">
@@ -59,6 +59,8 @@
       <div class="coords" id="scCoords">No location yet</div>
       <div class="map-wrap"><div id="scMap"></div><div class="map-msg" id="scMapMsg">Map needs signal. Use GPS or type the coordinates.</div></div>
       <div class="hint center">Tap the map to drop or move the point.</div>
+      <!-- WRI fork 2026-11-17: after a point is dropped the nearest segment is picked and the crew confirms it -->
+      <div class="segask hidden" id="scSegAsk"></div>
       <button class="link stypelink" id="scTypeLoc" type="button">Type coordinates instead</button>
       <div class="hidden" id="scLocBox">
         <div class="row">
@@ -72,7 +74,7 @@
         </div>
         <div class="hint">Type the numbers only; West and North are assumed.</div>
       </div>
-      <div class="sq" style="margin-top:18px">Segment<small>Nearest first once the segment layer carries locations.</small></div>
+      <div class="sq" style="margin-top:18px">Segment<small>Picked for you from your point (nearest); tap another here or on the map to change it.</small></div>
       <div class="field"><input id="scSegSearch" placeholder="Find a segment, e.g. YEL-7.5" autocomplete="off"></div>
       <div class="tiles one" id="scSegList"></div>
       <button class="link stypelink hidden" id="scSegTyped" type="button">Not in the list: use what I typed as the segment ID</button>
@@ -279,12 +281,12 @@
 
   <div class="toast hidden" id="toast"></div>
 
-  <script src="js/config.js?v=2026-11-17-4"></script>
-  <script src="js/store.js?v=2026-11-17-4"></script>
-  <script src="js/api.js?v=2026-11-17-4"></script>
-  <script src="js/outbox.js?v=2026-11-17-4"></script>
-  <script src="js/forms.js?v=2026-11-17-4"></script>
-  <script src="js/shell.js?v=2026-11-17-4"></script>
+  <script src="js/config.js?v=2026-11-17-5"></script>
+  <script src="js/store.js?v=2026-11-17-5"></script>
+  <script src="js/api.js?v=2026-11-17-5"></script>
+  <script src="js/outbox.js?v=2026-11-17-5"></script>
+  <script src="js/forms.js?v=2026-11-17-5"></script>
+  <script src="js/shell.js?v=2026-11-17-5"></script>
   <!-- Reference photos (NOAA job aid): one sheet shared by every tile screen; see ref/README.md -->
   <div class="refsheet hidden" id="scRefSheet">
     <div class="refpanel">
@@ -293,9 +295,9 @@
       <div class="refcredit" id="scRefCredit"></div>
     </div>
   </div>
-  <script src="js/scat-ref.js?v=2026-11-17-4"></script>
-  <script src="js/scat-packet.js?v=2026-11-17-4"></script>
-  <script src="js/scat-ui.js?v=2026-11-17-4"></script>
+  <script src="js/scat-ref.js?v=2026-11-17-5"></script>
+  <script src="js/scat-packet.js?v=2026-11-17-5"></script>
+  <script src="js/scat-ui.js?v=2026-11-17-5"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });

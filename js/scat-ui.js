@@ -374,12 +374,81 @@
   }
   function pickSegment(id) {
     var s = segments().filter(function (x) { return x.segment_id === id; })[0];
+    if (F._segAuto && F.segment === id) { answerSegAsk('yes'); return; }   // tapping the suggested one = yes
+    F._segAuto = false; F._segDecided = true; hideSegAsk();
     F.segment = F.segment === id ? '' : id;
     F.segmentLabel = F.segment && s ? (s.label || '') : '';
     if (F.segment && s && s.bank && !F.bank) F.bank = s.bank;
     $('scSegSearch').value = '';
     renderWhere();
     if (F.segment) setTimeout(function () { zoomToSeg(F.segment); }, 80);
+  }
+  // ---------- nearest segment from the dropped point (WRI fork 2026-11-17, Caleb) ----------
+  // A point dropped by GPS, map tap or typed coordinates picks the closest segment line within
+  // SEG_AUTO_M and asks "is this the segment you are on?". It keeps re-picking as the point moves
+  // until the crew answers or picks one by hand (list or map) -- a manual pick always wins.
+  var SEG_AUTO_M = 150;
+  function distToPathM(lat, lon, path) {   // metres from a point to a [[lat,lon],...] polyline (local flat-earth)
+    var kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540, best = Infinity;
+    (path || []).forEach(function (part) {
+      for (var i = 0; i < part.length; i++) {
+        var bx = (part[i][1] - lon) * kx, by = (part[i][0] - lat) * ky;
+        if (i === 0) { best = Math.min(best, Math.sqrt(bx * bx + by * by)); continue; }
+        var ax = (part[i - 1][1] - lon) * kx, ay = (part[i - 1][0] - lat) * ky;
+        var dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+        var t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+        var px = ax + t * dx, py = ay + t * dy;
+        best = Math.min(best, Math.sqrt(px * px + py * py));
+      }
+    });
+    return best;
+  }
+  function nearestSegment(lat, lon) {
+    var pool = visibleSegs();
+    if (F.phase === 'endpoint' && window.ScatPacket && !F._allSegs) {   // only reviewable segments in the endpoint phase
+      var ids = ScatPacket.reviewableIds();
+      pool = pool.filter(function (s) { return ids.indexOf(s.segment_id) >= 0; });
+    }
+    var best = null;
+    pool.forEach(function (s) { var d = distToPathM(lat, lon, s.path); if (!best || d < best.d) best = { seg: s, d: d }; });
+    return best;
+  }
+  function autoPickSegment() {
+    if (F.lat == null || F._segDecided) return;
+    var n = nearestSegment(F.lat, F.lon);
+    if (n && n.d <= SEG_AUTO_M) {
+      var s = n.seg;
+      F.segment = s.segment_id; F.segmentLabel = s.label || ''; F._segAuto = true;
+      if (s.bank && (!F.bank || F._bankAuto)) { F.bank = s.bank; F._bankAuto = true; }
+      showSegAsk('<b>Closest segment: ' + A.esc(s.name || s.segment_id) + '</b> &middot; ' + Math.round(n.d) + ' m from your point' +
+        (s.label ? '<br><small>' + A.esc(s.label) + '</small>' : '') + '<br>Is this the segment you are on?', true);
+      setTimeout(function () { zoomToSeg(s.segment_id); highlightPicked(); }, 60);
+    } else {
+      if (F._segAuto) { F.segment = ''; F.segmentLabel = ''; F._segAuto = false; }
+      showSegAsk('No segment within ' + SEG_AUTO_M + ' m of your point' + (n ? ' (nearest is ' + A.esc(n.seg.name || n.seg.segment_id) +
+        ', ' + (n.d >= 1000 ? (n.d / 1000).toFixed(1) + ' km' : Math.round(n.d) + ' m') + ' away)' : '') +
+        '. Pick your segment on the map or from the list below.', false);
+    }
+  }
+  function showSegAsk(html, ask) {
+    var el = $('scSegAsk');
+    el.classList.remove('hidden', 'ok');
+    el.innerHTML = html + (ask ? '<div class="row2"><button type="button" class="yes" data-ans="yes">Yes, that\u2019s it</button>' +
+                                 '<button type="button" data-ans="no">Pick another</button></div>' : '');
+  }
+  function hideSegAsk() { var el = $('scSegAsk'); if (el) { el.classList.add('hidden'); el.innerHTML = ''; } }
+  function answerSegAsk(ans) {
+    if (ans === 'yes') {
+      F._segAuto = false; F._segDecided = true;
+      var el = $('scSegAsk'); el.classList.add('ok');
+      el.innerHTML = '\u2713 Segment <b>' + A.esc(segName(F.segment)) + '</b> confirmed. <button class="link" type="button" data-ans="no">change</button>';
+    } else {
+      F.segment = ''; F.segmentLabel = ''; F._segAuto = false; F._segDecided = true;
+      if (F._bankAuto) { F.bank = ''; F._bankAuto = false; }
+      hideSegAsk();
+      var q = $('scSegSearch'); if (q) q.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    renderWhere();
   }
   /** Readable name (YEL-7.0-LB-A) for a segment key; the key itself when the list doesn't know it. */
   function segName(id) {
@@ -390,6 +459,7 @@
     $('scWhereQ').innerHTML = F.phase === 'endpoint' ? 'Which segment are you reviewing?<small>Use your location to sort the list, then tap the segment.</small>'
                                                      : 'Where are you?<small>Use your location, then tap your segment. One is enough.</small>';
     $('scPacketBar').classList.toggle('hidden', F.phase !== 'endpoint');
+    if (F.lat == null && !F.segment) hideSegAsk();   // a fresh record: no question left over from the last one
     if (F.phase === 'endpoint') { renderPacketBar(); if (S.incident) ScatPacket.ensure(S.incident.incident_id).then(function () { renderPacketBar(); }); }
     renderSegments();
     $('scBankBox').classList.toggle('hidden', F.phase !== 'recon');
@@ -551,7 +621,7 @@
       [].forEach.call($('scLonHemi').children, function (b) { b.classList.toggle('active', b.dataset.val === (target.lon < 0 ? 'W' : 'E')); });
     }
     if (target === F && view) { placeMarker(); if (from !== 'map') view.goTo({ center: [F.lon, F.lat], zoom: Math.max(view.zoom, 15) }).catch(function () {}); }
-    if (target === F && F.phase && !F.sub && cur().section === 'where') renderSegments();   // re-sort nearest-first
+    if (target === F && F.phase && !F.sub && cur().section === 'where') { autoPickSegment(); renderSegments(); }   // re-sort nearest-first
   }
   function gps(btnId, onFix) {
     var b = $(btnId);
@@ -1239,6 +1309,7 @@
     $('scPhaseChange').addEventListener('click', function () { A.lsSet(PHASE_KEY, ''); F.phase = ''; showPhase(); });
     $('scSegSearch').addEventListener('input', renderSegments);
     $('scSegList').addEventListener('click', function (e) { var b = e.target.closest('button[data-id]'); if (b) pickSegment(b.dataset.id); });
+    $('scSegAsk').addEventListener('click', function (e) { var b = e.target.closest('button[data-ans]'); if (b) answerSegAsk(b.dataset.ans); });
     $('scSegTyped').addEventListener('click', function () {
       var v = $('scSegSearch').value.trim().toUpperCase(), b = this; if (!v) return;
       // Caleb's segment ID shape: RIVER-mile-bank-letter, e.g. YEL-7.5-RB-A. Anything else needs a second tap.
