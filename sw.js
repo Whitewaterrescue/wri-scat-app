@@ -10,7 +10,7 @@
  *
  * APP_VERSION must equal the ?v= stamps in index.html; bump both together.
  */
-var APP_VERSION = '2026-11-17-2';
+var APP_VERSION = '2026-11-17-3';
 var CACHE = 'wri-scat-' + APP_VERSION;
 var LIB_CACHE = 'wri-scat-lib-leaflet-1.9.4';
 var REF_VERSION = '2026-10-30-a';                 // the reference-photo pack (ref/index.json "version"); bump when the pack changes

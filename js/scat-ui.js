@@ -251,8 +251,10 @@
     }).join('') : '<div class="hint">Lists not loaded yet: open this tab once with signal.</div>';
   }
   function renderTileScreen(s) {
-    var d = data(), v = d[s.field];
-    $('scTileQ').innerHTML = A.esc(s.q) + (s.sub ? '<small>' + A.esc(s.sub) + '</small>' : '');
+    var d = data(), mapNote = s.field === 'bank_type_primary' && !F.sub ? prefillBankType() : '';
+    var v = d[s.field];
+    $('scTileQ').innerHTML = A.esc(s.q) + (s.sub ? '<small>' + A.esc(s.sub) + '</small>' : '') +
+      (mapNote ? '<small class="map-prefill">' + A.esc(mapNote) + '</small>' : '');
     var picked = s.preset ? (v == null || v === '' ? '' : (s.preset.indexOf(Number(v)) >= 0 ? String(v) : '__other')) : v;
     tiles($('scTiles'), optsFor(s), picked, !!s.multi, s.tones, s.selTone);
     var other = !!s.preset && picked === '__other';
@@ -261,6 +263,27 @@
     $('scTileNoteBox').classList.toggle('hidden', !s.note);
     if (s.note) { $('scTileNoteLabel').textContent = s.note.label; $('scTileNote').value = d[s.note.field] || ''; }
     $('scRefBtn').classList.toggle('hidden', !(window.ScatRef && ScatRef.has(refKey(s))));
+  }
+  /**
+   * WRI fork 2026-11-17 (Caleb): the shoreline map already typed the segment's bank, so the survey's
+   * bank type starts on the map's answer (segments[].inland_type, same codes as these tiles); the crew
+   * taps another tile to correct it. map_bank_type keeps what the map said, so a different answer is a
+   * recorded correction of the classifier. Follows a segment change unless the crew already chose.
+   */
+  function prefillBankType() {
+    var seg = segments().filter(function (x) { return x.segment_id === F.segment; })[0];
+    var mt = seg && seg.inland_type;
+    if (F._bankMapFor !== F.segment) {
+      var crewChose = F.bank_type_primary && F.bank_type_primary !== F.map_bank_type;
+      F.map_bank_type = mt || '';
+      if (!crewChose) F.bank_type_primary = mt || '';
+      F._bankMapFor = F.segment;
+    }
+    if (!mt) return '';
+    var what = shoreLabel(mt) + (seg.esi_code ? ' (ESI ' + seg.esi_code + ')' : '');
+    return F.bank_type_primary === mt
+      ? 'Pre-filled from the shoreline map: ' + what + '. Tap a different type if it\u2019s wrong.'
+      : 'The shoreline map said ' + what + '; you changed it.';
   }
   var lastGo = 0;   // taps in the first 300 ms after a screen change are ignored (gloved double-taps)
   function onTile(code) {
