@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
-  <link rel="stylesheet" href="css/app.css?v=2026-11-17-5">
+  <link rel="stylesheet" href="css/app.css?v=2026-11-17-6">
 </head>
 <body>
   <header class="header">
@@ -80,6 +80,19 @@
       <button class="link stypelink hidden" id="scSegTyped" type="button">Not in the list: use what I typed as the segment ID</button>
       <button class="link stypelink hidden" id="scSegAll" type="button">Show all segments</button>
       <div class="picked hidden" id="scSegPicked"></div>
+      <!-- WRI fork 2026-11-17 (Caleb): a segment is required; this is the deliberate way out -->
+      <button class="link stypelink" id="scNoSegBtn" type="button">Not on a mapped segment?</button>
+      <div class="segask hidden" id="scNoSegBox">
+        <b>Not on a mapped segment</b> &mdash; why?
+        <div class="nsr" id="scNoSegReasons">
+          <button type="button" data-r="Side channel / backwater">Side channel / backwater</button>
+          <button type="button" data-r="Tributary">Tributary</button>
+          <button type="button" data-r="Not traced yet">Not traced yet</button>
+          <button type="button" data-r="Other">Other</button>
+        </div>
+        <input id="scNoSegNote" placeholder="Add a note (optional)" maxlength="200">
+        <div class="hint">Filed by your point only and listed for the data manager to assign. If a segment fits, pick it instead.</div>
+      </div>
       <div id="scBankBox">
         <div class="sq" style="margin-top:18px">Which bank?<small>Facing downstream.</small></div>
         <div class="tiles" id="scBank"></div>
@@ -281,12 +294,12 @@
 
   <div class="toast hidden" id="toast"></div>
 
-  <script src="js/config.js?v=2026-11-17-5"></script>
-  <script src="js/store.js?v=2026-11-17-5"></script>
-  <script src="js/api.js?v=2026-11-17-5"></script>
-  <script src="js/outbox.js?v=2026-11-17-5"></script>
-  <script src="js/forms.js?v=2026-11-17-5"></script>
-  <script src="js/shell.js?v=2026-11-17-5"></script>
+  <script src="js/config.js?v=2026-11-17-6"></script>
+  <script src="js/store.js?v=2026-11-17-6"></script>
+  <script src="js/api.js?v=2026-11-17-6"></script>
+  <script src="js/outbox.js?v=2026-11-17-6"></script>
+  <script src="js/forms.js?v=2026-11-17-6"></script>
+  <script src="js/shell.js?v=2026-11-17-6"></script>
   <!-- Reference photos (NOAA job aid): one sheet shared by every tile screen; see ref/README.md -->
   <div class="refsheet hidden" id="scRefSheet">
     <div class="refpanel">
@@ -295,9 +308,9 @@
       <div class="refcredit" id="scRefCredit"></div>
     </div>
   </div>
-  <script src="js/scat-ref.js?v=2026-11-17-5"></script>
-  <script src="js/scat-packet.js?v=2026-11-17-5"></script>
-  <script src="js/scat-ui.js?v=2026-11-17-5"></script>
+  <script src="js/scat-ref.js?v=2026-11-17-6"></script>
+  <script src="js/scat-packet.js?v=2026-11-17-6"></script>
+  <script src="js/scat-ui.js?v=2026-11-17-6"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });

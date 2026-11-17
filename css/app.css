@@ -165,6 +165,10 @@ textarea { min-height: 96px; resize: vertical; }
 .segask .row2 { display: flex; gap: 8px; margin-top: 10px; }
 .segask .row2 button { flex: 1; padding: 11px 8px; border-radius: 8px; font-weight: 700; font-size: 14px; border: 1px solid #555; background: #2b2b2b; color: #fff; }
 .segask .row2 button.yes { background: #2e7d32; border-color: #2e7d32; }
+.nsr { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 8px; }
+.nsr button { padding: 9px 11px; border-radius: 8px; border: 1px solid #555; background: #2b2b2b; color: #fff; font-weight: 700; font-size: 13px; }
+.nsr button.on { background: #f0a500; border-color: #f0a500; color: #111; }
+#scNoSegNote { width: 100%; }
 .picked { background: var(--panel); border: 1.5px solid var(--amber); border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-top: 8px; }
 .skipped { color: var(--amber); font-style: italic; }
 

@@ -188,6 +188,7 @@
   function fresh() {
     var st = sticky();
     var f = { i: 0, sub: null, segment: '', segmentLabel: '', bank: '', lat: null, lon: null, acc: null, captured: Date.now(), photos: [], skipped: {},
+              no_segment_reason: '',
               team: A.lsGet('wri_scat_team') || '', name: A.lsGet('wri_scat_name') || '', org: A.lsGet('wri_scat_org') || '', notes: '' };
     var p = F ? F.phase : phase();   // '' until the phone has chosen: the chooser screen shows
     if (p === 'recon') {
@@ -375,7 +376,7 @@
   function pickSegment(id) {
     var s = segments().filter(function (x) { return x.segment_id === id; })[0];
     if (F._segAuto && F.segment === id) { answerSegAsk('yes'); return; }   // tapping the suggested one = yes
-    F._segAuto = false; F._segDecided = true; hideSegAsk();
+    F._segAuto = false; F._segDecided = true; hideSegAsk(); clearNoSeg();
     F.segment = F.segment === id ? '' : id;
     F.segmentLabel = F.segment && s ? (s.label || '') : '';
     if (F.segment && s && s.bank && !F.bank) F.bank = s.bank;
@@ -450,6 +451,24 @@
     }
     renderWhere();
   }
+  // ---------- "Not on a mapped segment" (the only way past Where without a segment) ----------
+  function renderNoSeg() {
+    var show = F.phase !== 'endpoint';
+    $('scNoSegBtn').classList.toggle('hidden', !show);
+    var open = show && !!F._noSegOpen;
+    $('scNoSegBox').classList.toggle('hidden', !open);
+    var base = String(F.no_segment_reason || '').split(' \u2014 ')[0];
+    [].forEach.call($('scNoSegReasons').children, function (b) { b.classList.toggle('on', b.dataset.r === base); });
+  }
+  function setNoSegReason(base) {
+    var note = ($('scNoSegNote').value || '').trim();
+    F.no_segment_reason = base ? base + (note ? ' \u2014 ' + note : '') : '';
+    if (base) {   // a stated reason replaces any (suggested) segment
+      F.segment = ''; F.segmentLabel = ''; F._segAuto = false; F._segDecided = true; hideSegAsk();
+      if (F._bankAuto) { F.bank = ''; F._bankAuto = false; }
+    }
+  }
+  function clearNoSeg() { F.no_segment_reason = ''; F._noSegOpen = false; var n = $('scNoSegNote'); if (n) n.value = ''; }
   /** Readable name (YEL-7.0-LB-A) for a segment key; the key itself when the list doesn't know it. */
   function segName(id) {
     var s = segments().filter(function (x) { return x.segment_id === id; })[0];
@@ -460,6 +479,8 @@
                                                      : 'Where are you?<small>Use your location, then tap your segment. One is enough.</small>';
     $('scPacketBar').classList.toggle('hidden', F.phase !== 'endpoint');
     if (F.lat == null && !F.segment) hideSegAsk();   // a fresh record: no question left over from the last one
+    $('scNoSegNote').value = String(F.no_segment_reason || '').split(' — ')[1] || '';
+    renderNoSeg();
     if (F.phase === 'endpoint') { renderPacketBar(); if (S.incident) ScatPacket.ensure(S.incident.incident_id).then(function () { renderPacketBar(); }); }
     renderSegments();
     $('scBankBox').classList.toggle('hidden', F.phase !== 'recon');
@@ -969,8 +990,9 @@
   function check1() {
     if (!S.incident) return 'Pick the incident at the top first.';
     if (F.phase === 'endpoint') return F.segment ? '' : 'Tap the segment you are reviewing.';
-    if (!F.segment && F.lat == null) return 'Tap a segment or use your location. Either is enough.';
-    return '';
+    if (F.segment) return '';
+    if (F.no_segment_reason) return F.lat == null ? 'Drop your point first: with no segment, the point is all that places this record.' : '';
+    return 'Pick the segment you are on (confirm the suggested one, or tap another). Off the mapped shoreline? Tap "Not on a mapped segment?" and say why.';
   }
   function hasData(s, d) {
     if (s.section === 'where' || s.section === 'recommended') return true;
@@ -1094,7 +1116,8 @@
   }
   function renderReview() {
     var sk = F.skipped, html = row('Incident', S.incident ? S.incident.project_key + ' · ' + S.incident.client_name : '') +
-      row('Segment', (F.segment ? segName(F.segment) : 'none') + (F.bank ? ' · ' + label('bank_side', F.bank) : '')) +
+      row('Segment', (F.segment ? segName(F.segment) : 'not on a mapped segment' + (F.no_segment_reason ? ' (' + F.no_segment_reason + ')' : '')) +
+          (F.bank ? ' · ' + label('bank_side', F.bank) : '')) +
       row('Location', F.lat != null ? F.lat.toFixed(6) + ', ' + F.lon.toFixed(6) + (F.acc != null ? ' ± ' + F.acc + ' m' : '') : '');
     if (F.phase === 'recon') {
       html += row('Oil', F.oil ? label('oil_present', F.oil) : '', sk.oil) +
@@ -1147,7 +1170,8 @@
     if (F.name) A.lsSet('wri_scat_name', F.name);
     if (F.org) A.lsSet('wri_scat_org', F.org);
     var fields = { record_type: F.phase === 'recon' ? 'recon' : F.phase === 'endpoint' ? 'endpoint_review' : 'scat_survey', schema_version: '1',
-      segment_id: F.segment, bank_side: F.bank, lat: F.lat, lon: F.lon, gps_acc_m: F.acc, captured_at: F.captured,
+      segment_id: F.segment, no_segment_reason: F.segment ? '' : F.no_segment_reason,
+      bank_side: F.bank, lat: F.lat, lon: F.lon, gps_acc_m: F.acc, captured_at: F.captured,
       team: F.team, user: F.name, organization: F.org, notes: F.notes, skipped: Object.keys(F.skipped) };
     if (F.phase === 'recon') {
       Object.assign(fields, { oil_present: F.oil, oil_extent: F.extent, water_trend: F.trend, access: F.access, hazards: F.hazards.slice(), hazard_note: F.hazardNote, priority: F.priority });
@@ -1310,6 +1334,16 @@
     $('scSegSearch').addEventListener('input', renderSegments);
     $('scSegList').addEventListener('click', function (e) { var b = e.target.closest('button[data-id]'); if (b) pickSegment(b.dataset.id); });
     $('scSegAsk').addEventListener('click', function (e) { var b = e.target.closest('button[data-ans]'); if (b) answerSegAsk(b.dataset.ans); });
+    $('scNoSegBtn').addEventListener('click', function () { F._noSegOpen = !F._noSegOpen; if (!F._noSegOpen) clearNoSeg(); renderWhere(); });
+    $('scNoSegReasons').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-r]'); if (!b) return;
+      var base = String(F.no_segment_reason || '').split(' — ')[0];
+      setNoSegReason(base === b.dataset.r ? '' : b.dataset.r); renderWhere();
+    });
+    $('scNoSegNote').addEventListener('input', function () {
+      var base = String(F.no_segment_reason || '').split(' — ')[0];
+      if (base) setNoSegReason(base);
+    });
     $('scSegTyped').addEventListener('click', function () {
       var v = $('scSegSearch').value.trim().toUpperCase(), b = this; if (!v) return;
       // Caleb's segment ID shape: RIVER-mile-bank-letter, e.g. YEL-7.5-RB-A. Anything else needs a second tap.
