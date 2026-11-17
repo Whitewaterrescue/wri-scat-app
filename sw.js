@@ -2,7 +2,7 @@
  *
  * - Shell: precached, network-first with an 8 s race, cache fallback, so the app opens with no
  *   signal and updates when there is.
- * - Leaflet (cdnjs): cache-first. Map tiles and the APIs are never cached.
+ * - Map: ArcGIS JS from js.arcgis.com, never cached here (the map needs signal anyway). The APIs are never cached.
  * - Cache Storage is shared by every app on the origin, so activate deletes ONLY this app's old
  *   caches (prefix wri-scat-). Nothing is shared with WRI Field Forms.
  * - Background Sync (Android) drains the outbox with the app closed. iOS has none: the page drains
@@ -10,7 +10,7 @@
  *
  * APP_VERSION must equal the ?v= stamps in index.html; bump both together.
  */
-var APP_VERSION = '2026-11-17-3';
+var APP_VERSION = '2026-11-17-4';
 var CACHE = 'wri-scat-' + APP_VERSION;
 var LIB_CACHE = 'wri-scat-lib-leaflet-1.9.4';
 var REF_VERSION = '2026-10-30-a';                 // the reference-photo pack (ref/index.json "version"); bump when the pack changes
@@ -28,10 +28,7 @@ var SHELL = [
   './js/outbox.js?v=' + APP_VERSION, './js/forms.js?v=' + APP_VERSION, './js/shell.js?v=' + APP_VERSION,
   './js/scat-ref.js?v=' + APP_VERSION, './js/scat-packet.js?v=' + APP_VERSION, './js/scat-ui.js?v=' + APP_VERSION
 ];
-var LIBS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
-];
+var LIBS = [];   // ArcGIS JS (js.arcgis.com) is not precached: the map needs signal anyway
 
 /** The reference photos (about 3 MB): fetched once per pack version into their own cache, so the
  *  shell installs even if the pack does not finish; the fetch handler fills in anything missed. */

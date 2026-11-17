@@ -251,7 +251,7 @@
     }).join('') : '<div class="hint">Lists not loaded yet: open this tab once with signal.</div>';
   }
   function renderTileScreen(s) {
-    var d = data(), mapNote = s.field === 'bank_type_primary' && !F.sub ? prefillBankType() : '';
+    var d = data(), mapNote = !F.sub && MAP_PREFILL[s.field] ? prefillFromMap(s.field) : '';
     var v = d[s.field];
     $('scTileQ').innerHTML = A.esc(s.q) + (s.sub ? '<small>' + A.esc(s.sub) + '</small>' : '') +
       (mapNote ? '<small class="map-prefill">' + A.esc(mapNote) + '</small>' : '');
@@ -265,24 +265,31 @@
     $('scRefBtn').classList.toggle('hidden', !(window.ScatRef && ScatRef.has(refKey(s))));
   }
   /**
-   * WRI fork 2026-11-17 (Caleb): the shoreline map already typed the segment's bank, so the survey's
-   * bank type starts on the map's answer (segments[].inland_type, same codes as these tiles); the crew
-   * taps another tile to correct it. map_bank_type keeps what the map said, so a different answer is a
-   * recorded correction of the classifier. Follows a segment change unless the crew already chose.
+   * WRI fork 2026-11-17 (Caleb): the shoreline map already typed each segment, so survey answers it
+   * knows start on the map's call and the crew taps another tile to correct it:
+   *   bank_type_primary <- segments[].inland_type   (same 14 inland codes as the tiles)
+   *   overbank_type     <- segments[].overbank_code (SOS 4b overbank, crosswalked by the API)
+   * map_* keeps what the map said, so a different answer is a recorded correction of the classifier.
+   * Follows a segment change unless the crew already chose.
    */
-  function prefillBankType() {
+  var MAP_PREFILL = {
+    bank_type_primary: { seg: 'inland_type', keep: 'map_bank_type', what: function (c, sg) { return shoreLabel(c) + (sg.esi_code ? ' (ESI ' + sg.esi_code + ')' : ''); } },
+    overbank_type: { seg: 'overbank_code', keep: 'map_overbank_type', what: function (c) { return label('overbank_type', c); } }
+  };
+  function prefillFromMap(field) {
+    var P = MAP_PREFILL[field], mark = '_mapFor_' + field;
     var seg = segments().filter(function (x) { return x.segment_id === F.segment; })[0];
-    var mt = seg && seg.inland_type;
-    if (F._bankMapFor !== F.segment) {
-      var crewChose = F.bank_type_primary && F.bank_type_primary !== F.map_bank_type;
-      F.map_bank_type = mt || '';
-      if (!crewChose) F.bank_type_primary = mt || '';
-      F._bankMapFor = F.segment;
+    var mt = (seg && seg[P.seg]) || '';
+    if (F[mark] !== F.segment) {
+      var crewChose = F[field] && F[field] !== F[P.keep];
+      F[P.keep] = mt;
+      if (!crewChose) F[field] = mt;
+      F[mark] = F.segment;
     }
     if (!mt) return '';
-    var what = shoreLabel(mt) + (seg.esi_code ? ' (ESI ' + seg.esi_code + ')' : '');
-    return F.bank_type_primary === mt
-      ? 'Pre-filled from the shoreline map: ' + what + '. Tap a different type if it\u2019s wrong.'
+    var what = P.what(mt, seg);
+    return F[field] === mt
+      ? 'Pre-filled from the shoreline map: ' + what + '. Tap a different answer if it\u2019s wrong.'
       : 'The shoreline map said ' + what + '; you changed it.';
   }
   var lastGo = 0;   // taps in the first 300 ms after a screen change are ignored (gloved double-taps)
@@ -388,67 +395,152 @@
     $('scBankBox').classList.toggle('hidden', F.phase !== 'recon');
     tiles($('scBank'), list('bank_side'), F.bank, false, null, 'blue');
     renderMine();
-    setTimeout(function () { initMap(); if (map) { map.invalidateSize(); drawSegLines(); } }, 50);
+    setTimeout(function () { initMap(); drawSegLines(); }, 50);
   }
-  // ---------- segment lines on the map (WRI fork 2026-11-17: see + tap a segment, zoom to the pick) ----------
-  var segLayer = null, segFitted = false;
-  var BANK_COL = { LB: '#4fc3f7', RB: '#ff8a65', MC: '#ce93d8' };
+  // ---------- map: ArcGIS, styled like the SCAT segment web map (WRI fork 2026-11-17, Caleb) ----------
+  // The API's config.map carries the layers' LIVE drawingInfo (ESI renderer + labels), the current
+  // mile markers + centerline, and the web map's basemap tiles, so this map reads like the web map.
+  // Tap a segment = pick it (native highlight, zoom); tap anywhere else = drop / move the point.
+  var ARCGIS = 'https://js.arcgis.com/4.29/';
+  var AG = null, map = null, view = null, segLyr = null, segKey = '', segHl = null, pinLyr = null, segFitted = false, agLoading = false;
   function visibleSegs() {
     var inc = S.incident && S.incident.incident_id;
     return segments().filter(function (s) {
       return s.path && s.path.length && (!s.incident_id || !inc || String(s.incident_id) === String(inc));
     });
   }
-  function drawSegLines() {
-    if (!map || typeof L === 'undefined') return;
-    if (segLayer) map.removeLayer(segLayer);
-    segLayer = L.layerGroup();
-    var segs = visibleSegs(), picked = null;
-    segs.forEach(function (s) {
-      var on = s.segment_id === F.segment;
-      var ln = L.polyline(s.path, { color: on ? '#ffffff' : (BANK_COL[s.bank] || '#ffd54f'), weight: on ? 8 : 5,
-                                    opacity: 0.95, bubblingMouseEvents: false });
-      ln.bindTooltip(s.name || s.segment_id, { sticky: true });
-      ln.on('click', function () { if (F.segment !== s.segment_id) pickSegment(s.segment_id); });
-      segLayer.addLayer(ln);
-      if (on) picked = ln;
+  function loadArcgis(done) {
+    if (AG) return done();
+    if (agLoading) return;
+    agLoading = true;
+    var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = ARCGIS + 'esri/themes/dark/main.css';
+    document.head.appendChild(css);
+    var js = document.createElement('script'); js.src = ARCGIS;
+    js.onload = function () {
+      window.require(['esri/Map', 'esri/Basemap', 'esri/views/MapView', 'esri/layers/FeatureLayer', 'esri/layers/GraphicsLayer',
+        'esri/layers/TileLayer', 'esri/Graphic', 'esri/renderers/support/jsonUtils', 'esri/layers/support/LabelClass'],
+      function (Map, Basemap, MapView, FeatureLayer, GraphicsLayer, TileLayer, Graphic, rendererJson, LabelClass) {
+        AG = { Map: Map, Basemap: Basemap, MapView: MapView, FeatureLayer: FeatureLayer, GraphicsLayer: GraphicsLayer,
+               TileLayer: TileLayer, Graphic: Graphic, rendererJson: rendererJson, LabelClass: LabelClass };
+        done();
+      });
+    };
+    js.onerror = function () { agLoading = false; };
+    document.head.appendChild(js);
+  }
+  function mapCfg() { return (cfg && cfg.map) || {}; }
+  function drawingInfo(name) { return (mapCfg().style || {})[name] || null; }
+  function labelsFrom(di) {
+    return ((di && di.labelingInfo) || []).map(function (l) { try { return AG.LabelClass.fromJSON(l); } catch (e) { return null; } }).filter(Boolean);
+  }
+  function initMap() {
+    if (view || !navigator.onLine || !$('scMap')) return;
+    loadArcgis(function () {
+      if (view) return;
+      try {
+        var mc = mapCfg();
+        var bm = (mc.basemap && mc.basemap.length ? mc.basemap : [{ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer' }]);
+        var basemap = new AG.Basemap({
+          baseLayers: bm.filter(function (l) { return !l.reference; }).map(function (l) { return new AG.TileLayer({ url: l.url, opacity: l.opacity == null ? 1 : l.opacity }); }),
+          referenceLayers: bm.filter(function (l) { return l.reference; }).map(function (l) { return new AG.TileLayer({ url: l.url, opacity: l.opacity == null ? 1 : l.opacity }); })
+        });
+        map = new AG.Map({ basemap: basemap });
+        addContextLayers();
+        pinLyr = new AG.GraphicsLayer({ title: 'Your point' });
+        map.add(pinLyr);
+        var inc = S.cfg && S.cfg.incidents && S.cfg.incidents.filter(function (r) { return S.incident && r.incident_id === S.incident.incident_id; })[0];
+        var c = F.lat != null ? [F.lon, F.lat] : (inc && inc.lat != null) ? [inc.lon, inc.lat] : [-113.99, 46.87];
+        view = new AG.MapView({ container: 'scMap', map: map, center: c, zoom: F.lat != null ? 15 : 12,
+                                popupEnabled: false, constraints: { snapToZoom: false } });
+        view.on('click', function (e) {
+          view.hitTest(e, segLyr ? { include: [segLyr] } : undefined).then(function (r) {
+            var hit = (r.results || []).filter(function (x) { return x.graphic && x.graphic.layer === segLyr; })[0];
+            if (hit) { var id = hit.graphic.attributes.segment_id; if (F.segment !== id) pickSegment(id); return; }
+            setLoc(F, e.mapPoint.latitude, e.mapPoint.longitude, null, 'map', 'scCoords', 'scLat', 'scLon');
+          });
+        });
+        $('scMapMsg').classList.add('hidden');
+        placeMarker();
+        drawSegLines();
+      } catch (err) { view = null; map = null; }
     });
-    segLayer.addTo(map);
-    if (picked) picked.bringToFront();
-    // first view with no GPS fix and nothing picked: show where the segments are
-    if (!segFitted && F.lat == null && !F.segment && segs.length) {
-      segFitted = true;
-      var b = L.latLngBounds([]);
-      segs.forEach(function (s) { s.path.forEach(function (part) { b.extend(part); }); });
-      if (b.isValid()) map.fitBounds(b, { padding: [20, 20], maxZoom: 15 });
+  }
+  /** Centerline + mile markers, styled with their layers' own drawingInfo (as in the web map). */
+  function addContextLayers() {
+    var mc = mapCfg(), sr = { wkid: 4326 };
+    var cl = mc.centerline || [];
+    if (cl.length && drawingInfo('centerline')) {
+      map.add(new AG.FeatureLayer({ title: 'Centerline', objectIdField: 'oid', geometryType: 'polyline', spatialReference: sr,
+        fields: [{ name: 'oid', type: 'oid' }],
+        source: cl.map(function (paths, i) { return { geometry: { type: 'polyline', paths: paths, spatialReference: sr }, attributes: { oid: i + 1 } }; }),
+        renderer: AG.rendererJson.fromJSON(drawingInfo('centerline').renderer) }));
+    }
+    var mk = mc.markers || [];
+    if (mk.length && drawingInfo('markers')) {
+      map.add(new AG.FeatureLayer({ title: 'River miles', objectIdField: 'oid', geometryType: 'point', spatialReference: sr,
+        fields: [{ name: 'oid', type: 'oid' }, { name: 'mile', type: 'double' }, { name: 'label', type: 'string' }],
+        source: mk.map(function (m, i) { return { geometry: { type: 'point', longitude: m.lon, latitude: m.lat }, attributes: { oid: i + 1, mile: m.mile, label: m.label || String(m.mile) } }; }),
+        renderer: AG.rendererJson.fromJSON(drawingInfo('markers').renderer),
+        labelingInfo: labelsFrom(drawingInfo('markers')), labelsVisible: true }));
     }
   }
-  function zoomToSeg(id) {
-    var s = segments().filter(function (x) { return x.segment_id === id; })[0];
-    if (!map || !s || !s.path || !s.path.length) return;
-    var b = L.latLngBounds([]);
-    s.path.forEach(function (part) { b.extend(part); });
-    if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 17 });
+  /** Segments as a client-side FeatureLayer with the segment layer's live renderer + labels. */
+  function drawSegLines() {
+    if (!view || !AG) return;
+    var segs = visibleSegs(), di = drawingInfo('segments');
+    var key = (S.incident && S.incident.incident_id || '') + '|' + (cfg && cfg.version || '') + '|' + segs.length;
+    if (key !== segKey) {
+      segKey = key;
+      if (segLyr) map.remove(segLyr);
+      segHl = null;
+      var sr = { wkid: 4326 };
+      segLyr = new AG.FeatureLayer({
+        title: 'SCAT shoreline segments', objectIdField: 'oid', geometryType: 'polyline', spatialReference: sr,
+        fields: [{ name: 'oid', type: 'oid' }, { name: 'segment_id', type: 'string' }, { name: 'seg_name', type: 'string' },
+                 { name: 'seg_label', type: 'string' }, { name: 'esi_code', type: 'string' }, { name: 'esi_desc', type: 'string' },
+                 { name: 'bank', type: 'string' }],
+        source: segs.map(function (s, i) {
+          return { geometry: { type: 'polyline', spatialReference: sr,
+                               paths: s.path.map(function (part) { return part.map(function (c) { return [c[1], c[0]]; }); }) },
+                   attributes: { oid: i + 1, segment_id: s.segment_id, seg_name: s.name || s.segment_id, seg_label: s.short || s.name || '',
+                                 esi_code: s.esi_code || '', esi_desc: s.esi_desc || '', bank: s.bank || '' } };
+        }),
+        renderer: di && di.renderer ? AG.rendererJson.fromJSON(di.renderer)
+                                    : { type: 'simple', symbol: { type: 'simple-line', color: [255, 213, 79], width: 4 } },
+        labelingInfo: labelsFrom(di), labelsVisible: true
+      });
+      map.add(segLyr, map.layers.indexOf(pinLyr));   // under your point
+      // first view with no GPS fix and nothing picked: show where the segments are
+      if (!segFitted && F.lat == null && !F.segment && segs.length) {
+        segFitted = true;
+        segLyr.when(function () { return segLyr.queryExtent(); }).then(function (r) { if (r && r.extent) view.goTo(r.extent.expand(1.2)).catch(function () {}); });
+      }
+    }
+    highlightPicked();
   }
-  // ---------- map (tap to drop or move the point; same tiles as the Recon map) ----------
-  var map = null, marker = null;
-  function initMap() {
-    if (map || typeof L === 'undefined' || !navigator.onLine || !$('scMap')) return;
-    try {
-      var inc = S.cfg && S.cfg.incidents && S.cfg.incidents.filter(function (r) { return S.incident && r.incident_id === S.incident.incident_id; })[0];
-      var c = F.lat != null ? [F.lat, F.lon] : (inc && inc.lat != null) ? [inc.lat, inc.lon] : [46.87, -113.99];
-      map = L.map('scMap', { zoomControl: true, attributionControl: true }).setView(c, F.lat != null ? 15 : 12);
-      L.tileLayer(CONFIG.TILE_URL, { maxZoom: 19, attribution: 'Esri, Maxar' }).addTo(map);
-      map.on('click', function (e) { setLoc(F, e.latlng.lat, e.latlng.lng, null, 'map', 'scCoords', 'scLat', 'scLon'); });
-      $('scMapMsg').classList.add('hidden');
-      if (F.lat != null) placeMarker();
-    } catch (e) { map = null; }
+  function highlightPicked() {
+    if (!segLyr || !view) return;
+    view.whenLayerView(segLyr).then(function (lv) {
+      if (segHl) { segHl.remove(); segHl = null; }
+      if (!F.segment) return;
+      segLyr.queryObjectIds({ where: "segment_id = '" + String(F.segment).replace(/'/g, "''") + "'" }).then(function (ids) {
+        if (ids && ids.length) segHl = lv.highlight(ids);
+      });
+    });
+  }
+  function zoomToSeg(id) {
+    if (!segLyr || !view) return;
+    segLyr.queryFeatures({ where: "segment_id = '" + String(id).replace(/'/g, "''") + "'", returnGeometry: true }).then(function (r) {
+      var f = r.features && r.features[0];
+      if (f) view.goTo({ target: f.geometry.extent.expand(1.6) }).catch(function () {});
+    });
   }
   function placeMarker() {
-    if (!map || F.lat == null) { if (marker && map) { map.removeLayer(marker); marker = null; } return; }
-    var ll = [F.lat, F.lon];
-    if (!marker) marker = L.circleMarker(ll, { radius: 9, color: '#fff', weight: 2, fillColor: '#f0a500', fillOpacity: 1 }).addTo(map);
-    else marker.setLatLng(ll);
+    if (!pinLyr) return;
+    pinLyr.removeAll();
+    if (F.lat == null) return;
+    pinLyr.add(new AG.Graphic({ geometry: { type: 'point', longitude: F.lon, latitude: F.lat },
+      symbol: { type: 'simple-marker', size: 14, color: [240, 165, 0], outline: { color: [255, 255, 255], width: 2 } } }));
   }
   function setLoc(target, lat, lon, acc, from, coordsId, latId, lonId) {
     target.lat = Number(lat); target.lon = Number(lon); target.acc = acc == null ? null : Math.round(acc);
@@ -458,7 +550,7 @@
       [].forEach.call($('scLatHemi').children, function (b) { b.classList.toggle('active', b.dataset.val === (target.lat < 0 ? 'S' : 'N')); });
       [].forEach.call($('scLonHemi').children, function (b) { b.classList.toggle('active', b.dataset.val === (target.lon < 0 ? 'W' : 'E')); });
     }
-    if (target === F && map) { placeMarker(); if (from !== 'map') map.setView([F.lat, F.lon], Math.max(map.getZoom(), 15)); }
+    if (target === F && view) { placeMarker(); if (from !== 'map') view.goTo({ center: [F.lon, F.lat], zoom: Math.max(view.zoom, 15) }).catch(function () {}); }
     if (target === F && F.phase && !F.sub && cur().section === 'where') renderSegments();   // re-sort nearest-first
   }
   function gps(btnId, onFix) {
