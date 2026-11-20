@@ -1486,6 +1486,9 @@
     window.addEventListener('online', loadCfg);
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && apiState.ok !== true && Date.now() - apiState.at > 15000) loadCfg(); });
     $('scApiStatus').addEventListener('click', function (e) { if (e.target.id === 'scApiRetry') { apiState.ok = null; renderApiStatus(); loadCfg(); } });
+    // survey type tabs live at the top of the questions (desktop: top of the right panel), not in the header
+    var mainEl = document.querySelector('main.view[data-view="scat"]');
+    if (mainEl) mainEl.insertBefore($('scPhaseTabs'), mainEl.firstChild);
     deskSplit();
     loadCfg().then(function () { if (SPLIT) { initMap(); drawSegLines(); } });
     window.addEventListener('online', function () { if (SPLIT) setTimeout(function () { initMap(); drawSegLines(); }, 1500); });

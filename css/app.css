@@ -271,7 +271,7 @@ body.split .btn-big { min-height: 64px; font-size: 18px; }
    logo left · survey tabs centred · incident/role + pill buttons right; narrow screens: tabs on row 2. */
 .header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; background: var(--bg); }
 .header .logo { height: 38px; display: block; }
-.ptabs { display: flex; gap: 6px; max-width: 720px; width: 100%; margin: 0 auto; grid-column: 2; }
+.ptabs { display: flex; gap: 6px; width: 100%; margin: 0 0 14px; }   /* top of the questions panel (Caleb 2026-11-20) */
 .ptab { flex: 1; background: var(--card); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 10px 6px;
   font-weight: 700; font-size: 13px; text-transform: uppercase; cursor: pointer; white-space: nowrap; font-family: inherit; }
 .ptab.on { background: var(--red); border-color: var(--red); color: #fff; }
@@ -285,7 +285,6 @@ body.embed .hinc { display: block; text-align: right; font-size: 12px; font-weig
 .phasebar { display: none !important; }   /* the tabs replace the 'change' line */
 @media (max-width: 760px) {
   .header { grid-template-columns: auto 1fr; row-gap: 10px; }
-  .ptabs { grid-column: 1 / -1; grid-row: 2; }
   .hright { grid-column: 2; }
   .ptab { font-size: 12px; padding: 9px 4px; }
 }
