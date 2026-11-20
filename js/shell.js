@@ -152,8 +152,23 @@
   function wakeKick() { if (navigator.onLine) Outbox.wake().then(kick); else refreshStatus(); }
   var hiddenAt = 0;
 
+  // ---------- PIN handed over by the SCAT entry page ----------
+  // The WRI SCAT Shoreline page links here as ...?incident=<id>#pin=<pin> once the crew has entered
+  // the incident PIN there, so they never type it twice. The #hash never reaches a server; it is
+  // saved as the SCAT PIN (same as typing it in the PIN box) and wiped from the address bar.
+  function takeHandoffPin() {
+    var m = /[#&]pin=([^&]*)/.exec(location.hash || '');
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    var pin = ''; try { pin = decodeURIComponent(m[1]).trim(); } catch (e) {}
+    var scope = window.FORM_KINDS && FORM_KINDS.scat && FORM_KINDS.scat.pin_scope;
+    if (pin && scope && window.Outbox) Outbox.setScopedPin(scope, pin);
+  }
+
   // ---------- boot ----------
   function boot() {
+    takeHandoffPin();
+    window.addEventListener('hashchange', takeHandoffPin);
     $('incidentSel').addEventListener('change', function () {
       var r = ((S.cfg && S.cfg.incidents) || []).filter(function (x) { return x.incident_id === $('incidentSel').value; })[0]; setIncident(r);
     });
