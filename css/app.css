@@ -151,7 +151,7 @@ textarea { min-height: 96px; resize: vertical; }
 .snav { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid #2f3232; margin-top: 12px; }
 .snav .btn { flex: 1; padding: 14px 8px; min-height: 52px; font-size: 16px; }
 .snav .btn-skip { background: var(--panel); border: 1.5px solid var(--line); color: var(--muted); }
-.sprog { height: 3px; background: var(--card); margin: -16px -16px 14px; }
+.sprog { height: 4px; border-radius: 2px; background: var(--card); margin: 4px 0 14px; }   /* sits under the survey tabs now (was pulled up into the top edge) */
 .sprog > div { height: 100%; background: var(--amber); transition: width .3s; }
 .seglist { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 40vh; overflow-y: auto; }
 .seglist button { text-align: left; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px; }
@@ -305,7 +305,7 @@ body.split .dsplit { grid-template-columns: minmax(0, 1fr) clamp(460px, 38vw, 64
 body.split .dright { padding: 12px 18px 0; }
 body.split .ptabs { margin-bottom: 10px; }
 body.split .ptab { padding: 8px 4px; font-size: 12px; }
-body.split .sprog { margin-bottom: 10px; }
+body.split .sprog { margin: 6px 0 12px; }
 body.split .sq { font-size: 20px; margin-bottom: 10px; }
 body.split .sq small { font-size: 13px; margin-top: 3px; }
 body.split .tiles, body.split .tiles.one { grid-template-columns: 1fr 1fr; gap: 8px; }
