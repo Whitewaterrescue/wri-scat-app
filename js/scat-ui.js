@@ -539,13 +539,18 @@
         addContextLayers();
         pinLyr = new AG.GraphicsLayer({ title: 'Your point' });
         map.add(pinLyr);
+        workLyr = new AG.GraphicsLayer({ title: 'Zone / pit points' });
+        map.add(workLyr);
         var inc = S.cfg && S.cfg.incidents && S.cfg.incidents.filter(function (r) { return S.incident && r.incident_id === S.incident.incident_id; })[0];
         var c = F.lat != null ? [F.lon, F.lat] : (inc && inc.lat != null) ? [inc.lon, inc.lat] : [-113.99, 46.87];
         view = new AG.MapView({ container: 'scMap', map: map, center: c, zoom: F.lat != null ? 15 : 12,
                                 popupEnabled: false, constraints: { snapToZoom: false } });
         view.on('click', function (e) {
-          // the desktop map stays up on every step: only the Where step takes taps (no mid-form point changes)
-          if (!(F && F.phase && !F.sub && cur().section === 'where')) return;
+          // the desktop map stays up on every step: Where picks the segment/point, the zone/pit and
+          // end-of-survey steps take a clicked point (no GPS at a desk); other steps ignore taps
+          var sec = F && F.phase ? cur().section : '';
+          if (sec === 'zonegps' || (sec === 'extent' && !F.sub)) { mapPoint(sec, e.mapPoint.latitude, e.mapPoint.longitude); return; }
+          if (!(F && F.phase && !F.sub && sec === 'where')) return;
           view.hitTest(e, segLyr ? { include: [segLyr] } : undefined).then(function (r) {
             var hit = (r.results || []).filter(function (x) { return x.graphic && x.graphic.layer === segLyr; })[0];
             if (hit) { var id = hit.graphic.attributes.segment_id; if (F.segment !== id) pickSegment(id); return; }
@@ -665,9 +670,39 @@
     if (isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180) setLoc(F, la, lo, null, 'typed', 'scCoords');
   }
   /** Zone / pit location screen: GPS for the start, optional end. */
+  // map clicks set zone / pit / end points (Caleb 2026-11-20: desktop has no useful GPS). Zone: 1st click =
+  // upstream start, 2nd = downstream end, later clicks move the nearer of the two. Pit: one point.
+  var workLyr = null;
+  function mapPoint(sec, la, lo) {
+    if (sec === 'extent') { F.end_lat = la; F.end_lon = lo; $('scEndGps').textContent = '📍 End marked ✓'; renderExtent(); return; }
+    var d = data(), isPit = F.sub && F.sub.items === 'pits';
+    var setStart = function () { d.start_lat = la; d.start_lon = lo; d.start_acc = null; };
+    var setEnd = function () { d.end_lat = la; d.end_lon = lo; };
+    if (isPit || d.start_lat == null) setStart();
+    else if (d.end_lat == null) setEnd();
+    else if (Math.hypot(la - d.start_lat, lo - d.start_lon) <= Math.hypot(la - d.end_lat, lo - d.end_lon)) setStart();
+    else setEnd();
+    renderZoneGps();
+  }
+  function drawWorkPts() {
+    if (!workLyr || !AG) return;
+    workLyr.removeAll();
+    if (!F || !F.phase) return;
+    var sec = cur().section;
+    var add = function (la, lo, rgb) {
+      if (la == null) return;
+      workLyr.add(new AG.Graphic({ geometry: { type: 'point', longitude: lo, latitude: la },
+        symbol: { type: 'simple-marker', size: 12, color: rgb, outline: { color: [255, 255, 255], width: 2 } } }));
+    };
+    if (sec === 'zonegps') { var d = data(); add(d.start_lat, d.start_lon, [46, 204, 113]); add(d.end_lat, d.end_lon, [236, 35, 41]); }
+    if (sec === 'extent') add(F.end_lat, F.end_lon, [236, 35, 41]);
+  }
   function renderZoneGps() {
     var d = data(), isPit = F.sub.items === 'pits';
-    $('scZq').innerHTML = isPit ? 'Where is the pit?' : 'Where does the oiled zone start?<small>Stand at the upstream end and tap.</small>';
+    $('scZq').innerHTML = isPit ? 'Where is the pit?' + (SPLIT ? '<small>Click the map, or use your location.</small>' : '')
+      : 'Where does the oiled zone start?' + (SPLIT ? '<small>Click the map at the upstream end, then at the downstream end (optional). Or use your location.</small>'
+                                                     : '<small>Stand at the upstream end and tap.</small>');
+    drawWorkPts();
     $('scZCoords').textContent = d.start_lat != null ? d.start_lat.toFixed(6) + ', ' + d.start_lon.toFixed(6) + (d.start_acc != null ? '  ± ' + d.start_acc + ' m' : '') : 'No location yet';
     $('scZGps').textContent = d.start_lat != null ? '📍 Start captured ✓ (tap to refresh)' : '📍 Use My Location';
     $('scZGps').classList.toggle('ok', d.start_lat != null);
@@ -682,7 +717,8 @@
     tiles($('scExtentTiles'), opts, picked, false, { whole: 'green' }, 'blue');
     $('scExtentNumBox').classList.toggle('hidden', picked !== '__other');
     if (picked === '__other') $('scExtentNum').value = v == null ? '' : v;
-    $('scEndCoords').textContent = F.end_lat != null ? F.end_lat.toFixed(6) + ', ' + F.end_lon.toFixed(6) : 'Not marked yet';
+    $('scEndCoords').textContent = F.end_lat != null ? F.end_lat.toFixed(6) + ', ' + F.end_lon.toFixed(6) : (SPLIT ? 'Not marked yet (or click the map)' : 'Not marked yet');
+    drawWorkPts();
   }
   function onExtentTile(code) {
     if (code === 'whole') { F.whole_segment = 'yes'; F.length_surveyed_m = null; }
@@ -1035,6 +1071,7 @@
     window.scrollTo(0, 0);
     var dr = document.querySelector('.dright'); if (dr) dr.scrollTop = 0;
     syncPhaseTabs();
+    drawWorkPts();   // zone/pit points only show on their own steps
   }
   function prev() {
     var i = idx(), scr = screens(), d = data();
