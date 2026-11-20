@@ -8,9 +8,6 @@ html, body { background: var(--bg); color: var(--text); }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; color-scheme: dark; padding-bottom: env(safe-area-inset-bottom); }
 .hidden { display: none !important; }
 .header { background: var(--card); padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 50; }
-.header .logo { height: 42px; }
-.header h1 { font-size: 0; flex: 1; }   /* title text dropped (Caleb 2026-11-20): logo only; h1 kept as the spacer + for screen readers */
-.hdr-btn { background: var(--panel); color: var(--text); border: 1.5px solid var(--line); border-radius: 16px; padding: 6px 12px; font-size: 13px; }
 .progress { height: 3px; background: var(--card); }
 .progress-fill { height: 100%; background: var(--red); width: 20%; transition: width .3s; }
 .banner { padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -222,9 +219,6 @@ body.noscroll { overflow: hidden; }
   .incbar, .incbar-hint, body > .card, .banner { margin-left: max(28px, calc((100% - 1100px) / 2)); margin-right: max(28px, calc((100% - 1100px) / 2)); }
   .card { font-size: 15px; }
   main { padding: 22px 28px; }
-  .header { padding-left: 28px; padding-right: 28px; }
-  .header .logo { height: 48px; }
-  .hdr-btn { font-size: 15px; padding: 9px 18px; border-radius: 20px; }
   label { font-size: 15px; }
   input, select, textarea { font-size: 17px; padding: 13px 14px; }
   .hint { font-size: 14px; }
@@ -253,7 +247,6 @@ body.noscroll { overflow: hidden; }
 
 /* ---------- Embedded in the WRI SCAT Shoreline page (?embed=1, Caleb 2026-11-20) ----------
    This header is the only one: logo · incident · Saved · Switch. The incident from the entry card is locked. */
-body.embed .header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
 body.embed.inclock .incbar, body.embed.inclock .incbar-hint { display: none; }
 
 /* ---------- Desktop split (body.split, set by scat-ui.js on wide screen + mouse) ----------
@@ -273,3 +266,26 @@ body.split .sq small { font-size: 15px; }
 body.split .tiles, body.split .tiles.one { grid-template-columns: 1fr; gap: 12px; }
 body.split .tile { min-height: 84px; font-size: 19px; padding: 16px 18px; }
 body.split .btn-big { min-height: 64px; font-size: 18px; }
+
+/* ---------- ONE HEADER FORMAT (Caleb 2026-11-20), same as the WRI SCAT Shoreline page ----------
+   logo left · survey tabs centred · incident/role + pill buttons right; narrow screens: tabs on row 2. */
+.header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; background: var(--bg); }
+.header .logo { height: 38px; display: block; }
+.ptabs { display: flex; gap: 6px; max-width: 720px; width: 100%; margin: 0 auto; grid-column: 2; }
+.ptab { flex: 1; background: var(--card); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 10px 6px;
+  font-weight: 700; font-size: 13px; text-transform: uppercase; cursor: pointer; white-space: nowrap; font-family: inherit; }
+.ptab.on { background: var(--red); border-color: var(--red); color: #fff; }
+.hright { display: flex; align-items: center; gap: 10px; justify-self: end; grid-column: 3; }
+.hinc { display: none; }
+body.embed .hinc { display: block; text-align: right; font-size: 12px; font-weight: 400; line-height: 1.3; color: var(--muted); }
+.hinc b { display: block; color: #fff; font-weight: 600; font-size: 14px; }
+.hdr-btn { font-size: 14px; font-weight: 600; color: var(--text); background: var(--card); border: 1px solid var(--line);
+  border-radius: 999px; padding: 8px 16px; line-height: 1; cursor: pointer; white-space: nowrap; font-family: inherit; }
+.hdr-btn:hover { border-color: var(--red); }
+.phasebar { display: none !important; }   /* the tabs replace the 'change' line */
+@media (max-width: 760px) {
+  .header { grid-template-columns: auto 1fr; row-gap: 10px; }
+  .ptabs { grid-column: 1 / -1; grid-row: 2; }
+  .hright { grid-column: 2; }
+  .ptab { font-size: 12px; padding: 9px 4px; }
+}

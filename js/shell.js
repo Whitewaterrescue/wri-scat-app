@@ -87,7 +87,7 @@
   }
   function setIncident(r) {
     S.incident = r ? { incident_id: r.incident_id, project_key: r.project_key, client_name: r.client_name, incident_name: r.incident_name || r.project_key } : null;
-    if (EMBED) $('viewTitle').textContent = r ? r.project_key : '';
+    if (EMBED) $('viewTitle').innerHTML = r ? '<b>' + esc(r.project_key) + '</b>' + esc(ROLE) : '';
     window.dispatchEvent(new Event('incident:changed'));
     if (r) lsSet('wri_scat_incident', r.incident_id);
     $('incidentHint').textContent = r ? 'Files to ' + r.project_key + ' (' + r.client_name + ').' : '';
@@ -170,6 +170,7 @@
   // ?embed=1 inside a frame: this header is the only one. The incident chosen on the entry card is
   // locked (picker hidden, name in the header) and Switch asks the parent page for its entry card.
   var EMBED = /[?&]embed=1(&|$)/.test(location.search) && window.parent !== window;
+  var ROLE = /[?&]role=manager(&|$)/.test(location.search) ? 'Data manager' : 'Field crew';
   function setupEmbed() {
     if (!EMBED) return;
     document.body.classList.add('embed');

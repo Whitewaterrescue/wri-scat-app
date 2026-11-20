@@ -1034,6 +1034,7 @@
     render();
     window.scrollTo(0, 0);
     var dr = document.querySelector('.dright'); if (dr) dr.scrollTop = 0;
+    syncPhaseTabs();
   }
   function prev() {
     var i = idx(), scr = screens(), d = data();
@@ -1084,8 +1085,26 @@
     [].forEach.call(document.querySelectorAll('.sstep'), function (el) { el.classList.toggle('active', el.dataset.skey === 'phase'); });
     $('scPhaseBar').classList.add('hidden');
     ['scBack', 'scSkip', 'scNext', 'scSave'].forEach(function (id) { $(id).classList.add('hidden'); });
+    syncPhaseTabs();
   }
   function setPhase(p) { A.lsSet(PHASE_KEY, p); F = null; reset(); }
+  // ---------- survey type tabs in the header (Caleb 2026-11-20; replace the 'change' link) ----------
+  var PHASE_LABEL = { recon: 'Recon SCAT', survey: 'SCAT Survey', endpoint: 'Endpoint Review' };
+  function syncPhaseTabs() {
+    var p = (F && F.phase) || '';
+    $('scPhaseTabs').classList.toggle('hidden', !p);
+    [].forEach.call(document.querySelectorAll('#scPhaseTabs .ptab'), function (b) { b.classList.toggle('on', b.dataset.code === p); });
+  }
+  function startedRecord() { return !!(F && F.phase && (idx() > 0 || F.segment || F.lat != null || (F.photos && F.photos.length))); }
+  function onPhaseTab(e) {
+    var b = e.target.closest('.ptab'); if (!b || !F || b.dataset.code === F.phase) return;
+    if (startedRecord()) {
+      var go2 = true;
+      try { go2 = window.confirm('Switch to ' + PHASE_LABEL[b.dataset.code] + '? The ' + (PHASE_LABEL[F.phase] || 'record') + ' you started will be discarded.'); } catch (x) {}
+      if (!go2) return;
+    }
+    setPhase(b.dataset.code);
+  }
   function screensFor(d) { return screens(); }
   /** Test hook (also handy in the console): tap a tile on the current screen by code, or press a nav button. */
   window.__scatTap = function (code) { var b = document.querySelector('.sstep.active .tile[data-code="' + code + '"]'); if (b) b.click(); return !!b; };
@@ -1350,6 +1369,7 @@
     A = window.WRIApp; $ = A.$; S = A.S;
     if (!$('scSegSearch')) return;
     F = fresh();
+    $('scPhaseTabs').addEventListener('click', onPhaseTab);
     $('scPhaseTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) setPhase(b.dataset.code); });
     $('scPhaseChange').addEventListener('click', function () { A.lsSet(PHASE_KEY, ''); F.phase = ''; showPhase(); });
     $('scSegSearch').addEventListener('input', renderSegments);

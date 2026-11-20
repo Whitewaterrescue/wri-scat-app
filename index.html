@@ -10,15 +10,23 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
-  <link rel="stylesheet" href="css/app.css?v=2026-11-20-4">
+  <link rel="stylesheet" href="css/app.css?v=2026-11-20-5">
 </head>
 <body>
   <header class="header">
-    <img src="assets/wri-logo.png" alt="" class="logo">
-    <h1 id="viewTitle">SCAT</h1>
-    <button class="hdr-btn" id="savedBtn" type="button">Saved <span id="savedCount"></span></button>
-    <!-- embedded in the WRI SCAT Shoreline page (?embed=1): back to its entry card -->
-    <button class="hdr-btn hidden" id="switchBtn" type="button">Switch</button>
+    <img src="assets/wri-logo.png" alt="WRI" class="logo">
+    <!-- survey type tabs (Caleb 2026-11-20): shown once a type is picked; same format as the SCAT Shoreline page tabs -->
+    <nav class="ptabs hidden" id="scPhaseTabs">
+      <button type="button" class="ptab" data-code="recon">Recon SCAT</button>
+      <button type="button" class="ptab" data-code="survey">SCAT Survey</button>
+      <button type="button" class="ptab" data-code="endpoint">Endpoint Review</button>
+    </nav>
+    <div class="hright">
+      <h1 id="viewTitle" class="hinc"></h1>
+      <button class="hdr-btn" id="savedBtn" type="button">Saved <span id="savedCount"></span></button>
+      <!-- embedded in the WRI SCAT Shoreline page (?embed=1): back to its entry card -->
+      <button class="hdr-btn hidden" id="switchBtn" type="button">Switch</button>
+    </div>
   </header>
   <div class="incbar"><label for="incidentSel">Incident</label><select id="incidentSel"></select></div>
   <div class="hint incbar-hint" id="incidentHint"></div>
@@ -296,12 +304,12 @@
 
   <div class="toast hidden" id="toast"></div>
 
-  <script src="js/config.js?v=2026-11-20-4"></script>
-  <script src="js/store.js?v=2026-11-20-4"></script>
-  <script src="js/api.js?v=2026-11-20-4"></script>
-  <script src="js/outbox.js?v=2026-11-20-4"></script>
-  <script src="js/forms.js?v=2026-11-20-4"></script>
-  <script src="js/shell.js?v=2026-11-20-4"></script>
+  <script src="js/config.js?v=2026-11-20-5"></script>
+  <script src="js/store.js?v=2026-11-20-5"></script>
+  <script src="js/api.js?v=2026-11-20-5"></script>
+  <script src="js/outbox.js?v=2026-11-20-5"></script>
+  <script src="js/forms.js?v=2026-11-20-5"></script>
+  <script src="js/shell.js?v=2026-11-20-5"></script>
   <!-- Reference photos (NOAA job aid): one sheet shared by every tile screen; see ref/README.md -->
   <div class="refsheet hidden" id="scRefSheet">
     <div class="refpanel">
@@ -310,9 +318,9 @@
       <div class="refcredit" id="scRefCredit"></div>
     </div>
   </div>
-  <script src="js/scat-ref.js?v=2026-11-20-4"></script>
-  <script src="js/scat-packet.js?v=2026-11-20-4"></script>
-  <script src="js/scat-ui.js?v=2026-11-20-4"></script>
+  <script src="js/scat-ref.js?v=2026-11-20-5"></script>
+  <script src="js/scat-packet.js?v=2026-11-20-5"></script>
+  <script src="js/scat-ui.js?v=2026-11-20-5"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
