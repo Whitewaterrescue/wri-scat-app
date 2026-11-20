@@ -87,7 +87,7 @@
     { key: 'issues', section: 'tiles', q: 'Anything a cleanup must respect here?', sub: 'Tap all that apply.', list: 'issues', field: 'issues', multi: true, selTone: 'amber' },
     { key: 'oil_category', section: 'tiles', q: 'What kind of oil is it?', list: 'oil_category', field: 'oil_category', single: true, sticky: true, tones: { I: 'amber', II: 'amber', III: 'orange', IV: 'red', V: 'red' } },
     { key: 'containment', section: 'tiles', q: 'Is there containment downstream of this segment?', opts: YN, tones: { yes: 'green', no: 'amber' }, field: 'containment', single: true, when: flowing },
-    { key: 'str', section: 'str' },
+    { key: 'str', section: 'str', required: true },   // Caleb 2026-11-20: Ops gets these methods -- no empty STR
     { key: 'notes', section: 'notes' },
     { key: 'review', section: 'review' }
   ];
@@ -1043,7 +1043,8 @@
     if (s.section === 'zonegps') return d.start_lat != null;
     if (s.section === 'items') return d[s.items].length > 0;
     if (s.section === 'photos') return d.photos.length > 0;
-    if (s.section === 'str') return d.str.recommended.length > 0 || !!d.str.rationale;
+    // methods to choose from -> at least one (Natural Recovery = leave it); none mapped -> a note explaining the plan
+    if (s.section === 'str') return (d.str.scores && d.str.scores.length) ? d.str.recommended.length > 0 : !!d.str.rationale;
     if (s.section === 'notes' || s.section === 'itemnotes') return !!d.notes;
     if (s.key === 'hazards') return !!((d.hazards || []).length || d.hazard_note || d.hazardNote);
     var v = d[s.field];
@@ -1082,7 +1083,7 @@
   function next() {
     var s = cur(), d = data(), skipped = F.sub ? F.sub.skipped : F.skipped;
     if (s.section === 'where') { var m = check1(); if (m) { A.toast(m); return; } }
-    if (s.required && !hasData(s, d)) { A.toast(s.section === 'zonegps' ? 'Tap Use My Location: a ' + (F.sub.items === 'pits' ? 'pit' : 'zone') + ' needs a point.' : s.section === 'decision' ? 'The decision is the record: tap one of the three.' : 'Tap an answer.'); return; }
+    if (s.required && !hasData(s, d)) { A.toast(s.section === 'str' ? ((d.str.scores && d.str.scores.length) ? 'Tap at least one method you recommend (Natural Recovery = leave it to recover).' : 'No methods are mapped here: write the treatment plan in the notes.') : s.section === 'zonegps' ? (SPLIT ? 'Click the map or use your location: a ' : 'Tap Use My Location: a ') + (F.sub.items === 'pits' ? 'pit' : 'zone') + ' needs a point.' : s.section === 'decision' ? 'The decision is the record: tap one of the three.' : 'Tap an answer.'); return; }
     if (s.single && !s.preset && !hasData(s, d)) { A.toast('Tap an answer, or Skip.'); return; }
     // Next on an empty optional screen counts as a skip: "skipped, not empty" holds either way
     if (hasData(s, d)) delete skipped[s.key]; else if (!s.required && s.key !== 'review' && s.section !== 'where') skipped[s.key] = true;
