@@ -288,3 +288,39 @@ body.embed .hinc { display: block; text-align: right; font-size: 12px; font-weig
   .hright { grid-column: 2; }
   .ptab { font-size: 12px; padding: 9px 4px; }
 }
+
+/* Survey type tabs carry the chooser tiles' colours (Caleb 2026-11-20): Recon amber, Survey blue, Endpoint green */
+.ptab[data-code="recon"] { border-color: #f0a500; }
+.ptab[data-code="survey"] { border-color: #3b82f6; }
+.ptab[data-code="endpoint"] { border-color: #2ecc71; }
+.ptab.on[data-code="recon"] { background: #f0a500; border-color: #f0a500; color: #2b1d00; }
+.ptab.on[data-code="survey"] { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+.ptab.on[data-code="endpoint"] { background: #2ecc71; border-color: #2ecc71; color: #10281a; }
+.ptab:not(.on):hover { color: var(--text); }
+
+/* Desktop split, compact (Caleb 2026-11-20: no scrolling in the questions panel if it can be helped).
+   Wider panel, tighter type, tiles two-up, so a step fits the window height; the map on the left
+   already shows the segments, so the list stays short. */
+body.split .dsplit { grid-template-columns: minmax(0, 1fr) clamp(460px, 38vw, 640px); }
+body.split .dright { padding: 12px 18px 0; }
+body.split .ptabs { margin-bottom: 10px; }
+body.split .ptab { padding: 8px 4px; font-size: 12px; }
+body.split .sprog { margin-bottom: 10px; }
+body.split .sq { font-size: 20px; margin-bottom: 10px; }
+body.split .sq small { font-size: 13px; margin-top: 3px; }
+body.split .tiles, body.split .tiles.one { grid-template-columns: 1fr 1fr; gap: 8px; }
+body.split #scPhaseTiles { grid-template-columns: 1fr; }
+body.split .tile { min-height: 56px; padding: 10px 12px; font-size: 16px; border-width: 2px; border-radius: 12px; }
+body.split .tile small { font-size: 12.5px; margin-top: 2px; line-height: 1.3; }
+body.split .tile.seg { min-height: 52px; }
+body.split .btn-big { min-height: 50px; font-size: 16px; }
+body.split .btn-gps { margin-bottom: 4px; }
+body.split .coords { margin-bottom: 4px; font-size: 13px; }
+body.split .hint { font-size: 12.5px; margin-top: 4px; }
+body.split .field { margin-bottom: 8px; }
+body.split input, body.split select, body.split textarea { font-size: 15px; padding: 9px 11px; }
+body.split textarea { min-height: 72px; }
+body.split .chip { font-size: 14px; padding: 7px 14px; }
+body.split .snav { padding: 10px 0; gap: 10px; margin-top: auto; }
+body.split .snav .btn { min-height: 50px; font-size: 16px; }
+body.split .card { font-size: 13px; padding: 10px; }
