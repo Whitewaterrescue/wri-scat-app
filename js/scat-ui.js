@@ -1093,6 +1093,7 @@
   function syncPhaseTabs() {
     var p = (F && F.phase) || '';
     $('scPhaseTabs').classList.toggle('hidden', !p);
+    document.body.setAttribute('data-phase', p);   // progress bar colour follows the survey type
     [].forEach.call(document.querySelectorAll('#scPhaseTabs .ptab'), function (b) { b.classList.toggle('on', b.dataset.code === p); });
   }
   function startedRecord() { return !!(F && F.phase && (idx() > 0 || F.segment || F.lat != null || (F.photos && F.photos.length))); }

@@ -324,3 +324,7 @@ body.split .chip { font-size: 14px; padding: 7px 14px; }
 body.split .snav { padding: 10px 0; gap: 10px; margin-top: auto; }
 body.split .snav .btn { min-height: 50px; font-size: 16px; }
 body.split .card { font-size: 13px; padding: 10px; }
+/* progress bar in the current survey's colour (Caleb 2026-11-20), same as its tab */
+body[data-phase="recon"] .sprog > div { background: #f0a500; }
+body[data-phase="survey"] .sprog > div { background: #3b82f6; }
+body[data-phase="endpoint"] .sprog > div { background: #2ecc71; }
