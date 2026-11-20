@@ -211,3 +211,42 @@ body.noscroll { overflow: hidden; }
 
 /* WRI fork 2026-11-17: bank type pre-filled from the shoreline map */
 .map-prefill { color: #7fd1ff; margin-top: 4px; }
+
+/* ---------- Desktop (Caleb 2026-11-20): wide screen + mouse only; phones never match ----------
+   The phone layout stretched thin across a desktop window: small text, short tiles, a 240 px map and
+   lots of empty space. Here: one centred column, everything scaled up, phase tiles side by side,
+   a tall map. */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  body { font-size: 17px; }
+  main { max-width: 1156px; margin: 0 auto; }
+  .incbar, .incbar-hint, body > .card, .banner { margin-left: max(28px, calc((100% - 1100px) / 2)); margin-right: max(28px, calc((100% - 1100px) / 2)); }
+  .card { font-size: 15px; }
+  main { padding: 22px 28px; }
+  .header { padding-left: 28px; padding-right: 28px; }
+  .header .logo { height: 48px; }
+  .hdr-btn { font-size: 15px; padding: 9px 18px; border-radius: 20px; }
+  label { font-size: 15px; }
+  input, select, textarea { font-size: 17px; padding: 13px 14px; }
+  .hint { font-size: 14px; }
+  .incbar select { font-size: 17px; padding: 11px 12px; }
+  .banner { border-radius: 10px; margin-top: 12px; }
+  .sq { font-size: 30px; margin-bottom: 20px; }
+  .sq small { font-size: 17px; margin-top: 6px; }
+  .tiles { gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .tiles.one { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .tile { min-height: 110px; padding: 20px 22px; font-size: 21px; border-radius: 16px; cursor: pointer; }
+  .tile small { font-size: 15px; margin-top: 6px; line-height: 1.4; }
+  .tile.seg { min-height: 84px; }
+  .tile:hover { filter: brightness(1.12); }
+  .btn { font-size: 17px; padding: 14px 20px; }
+  .btn-big { min-height: 76px; font-size: 20px; }
+  .coords { font-size: 15px; }
+  .map-wrap { height: max(420px, calc(100vh - 420px)); border-radius: 12px; }
+  .chip { font-size: 15px; padding: 10px 18px; }
+  .snav { padding: 16px 0; gap: 14px; }
+  .snav .btn { min-height: 64px; font-size: 19px; border-radius: 12px; }
+  .review .r { font-size: 16px; }
+  .review .k { width: 150px; }
+  .box { max-width: 520px; padding: 24px; }
+  .box-wide { max-width: 760px; }
+}

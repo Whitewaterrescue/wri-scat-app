@@ -1298,9 +1298,10 @@
     if (!CONFIG.SCAT_API) { el.textContent = ''; return; }
     var n = (cfg && cfg.segments) ? cfg.segments.length : 0, lists = cfg && cfg.lists ? Object.keys(cfg.lists).length : 0;
     var tail = String(CONFIG.SCAT_API).replace(/^.*\/s\//, '…/').slice(0, 14) + '…' + String(CONFIG.SCAT_API).slice(-5);
-    if (apiState.ok === true) el.innerHTML = 'Lists loaded: ' + n + ' segments, ' + lists + ' lists. API ' + A.esc(tail);
+    // success stays quiet (Caleb 2026-11-20: crews don't need 'Lists loaded'); only a failure shows
+    if (apiState.ok === true) el.innerHTML = '';
     else if (apiState.ok === false) el.innerHTML = '<span style="color:#ff9a9d">Could not load the SCAT lists from ' + A.esc(tail) + ': ' + A.esc(apiState.msg) + '</span> <button class="link" id="scApiRetry" type="button">Retry</button>';
-    else el.innerHTML = cfg ? 'Lists from the last visit.' : 'Loading the SCAT lists…';
+    else el.innerHTML = cfg ? '' : 'Loading the SCAT lists…';
   }
 
   // ---------- cached config ----------
