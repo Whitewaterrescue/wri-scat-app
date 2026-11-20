@@ -544,6 +544,8 @@
         view = new AG.MapView({ container: 'scMap', map: map, center: c, zoom: F.lat != null ? 15 : 12,
                                 popupEnabled: false, constraints: { snapToZoom: false } });
         view.on('click', function (e) {
+          // the desktop map stays up on every step: only the Where step takes taps (no mid-form point changes)
+          if (!(F && F.phase && !F.sub && cur().section === 'where')) return;
           view.hitTest(e, segLyr ? { include: [segLyr] } : undefined).then(function (r) {
             var hit = (r.results || []).filter(function (x) { return x.graphic && x.graphic.layer === segLyr; })[0];
             if (hit) { var id = hit.graphic.attributes.segment_id; if (F.segment !== id) pickSegment(id); return; }
@@ -1031,6 +1033,7 @@
     $('scNext').textContent = subLast ? 'Done' : (s.single && !s.preset && !hasData(s, d) ? 'Tap an answer' : 'Next');
     render();
     window.scrollTo(0, 0);
+    var dr = document.querySelector('.dright'); if (dr) dr.scrollTop = 0;
   }
   function prev() {
     var i = idx(), scr = screens(), d = data();
@@ -1291,6 +1294,23 @@
     });
   }
 
+  // ---------- desktop split (Caleb 2026-11-20): big map left on every step, the questions on the right ----------
+  // Same media query as the desktop CSS; decided once at load (phones never match). The Where step's map
+  // is moved into the left column before the map is created, so there is still exactly one map.
+  var SPLIT = !!(window.matchMedia && matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches);
+  function deskSplit() {
+    var main = document.querySelector('main.view[data-view="scat"]'), mw = main && main.querySelector('.map-wrap');
+    if (!SPLIT || !mw) { SPLIT = false; return; }
+    var wrap = document.createElement('div'), left = document.createElement('div'), right = document.createElement('div');
+    wrap.className = 'dsplit'; left.className = 'dleft'; right.className = 'dright';
+    while (main.firstChild) right.appendChild(main.firstChild);
+    left.appendChild(mw); wrap.appendChild(left); wrap.appendChild(right); main.appendChild(wrap);
+    document.body.classList.add('split');
+    var fit = function () { document.documentElement.style.setProperty('--dtop', Math.round(wrap.getBoundingClientRect().top + (window.scrollY || 0)) + 'px'); };
+    fit(); window.addEventListener('resize', fit); setTimeout(fit, 400);
+    window.addEventListener('outbox:changed', function () { setTimeout(fit, 50); });   // banner above can come and go
+  }
+
   // ---------- API status line (what the phone sees) ----------
   var apiState = { ok: null, msg: '', at: 0 };
   function renderApiStatus() {
@@ -1446,7 +1466,9 @@
     window.addEventListener('online', loadCfg);
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && apiState.ok !== true && Date.now() - apiState.at > 15000) loadCfg(); });
     $('scApiStatus').addEventListener('click', function (e) { if (e.target.id === 'scApiRetry') { apiState.ok = null; renderApiStatus(); loadCfg(); } });
-    loadCfg();
+    deskSplit();
+    loadCfg().then(function () { if (SPLIT) { initMap(); drawSegLines(); } });
+    window.addEventListener('online', function () { if (SPLIT) setTimeout(function () { initMap(); drawSegLines(); }, 1500); });
     go(0);
   }
   window.ScatUI = { render: function () { render(); } };

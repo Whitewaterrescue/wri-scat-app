@@ -87,6 +87,7 @@
   }
   function setIncident(r) {
     S.incident = r ? { incident_id: r.incident_id, project_key: r.project_key, client_name: r.client_name, incident_name: r.incident_name || r.project_key } : null;
+    if (EMBED) $('viewTitle').textContent = r ? r.project_key : '';
     window.dispatchEvent(new Event('incident:changed'));
     if (r) lsSet('wri_scat_incident', r.incident_id);
     $('incidentHint').textContent = r ? 'Files to ' + r.project_key + ' (' + r.client_name + ').' : '';
@@ -165,8 +166,21 @@
     if (pin && scope && window.Outbox) Outbox.setScopedPin(scope, pin);
   }
 
+  // ---------- embedded in the WRI SCAT Shoreline page (Caleb 2026-11-20: one header, not two) ----------
+  // ?embed=1 inside a frame: this header is the only one. The incident chosen on the entry card is
+  // locked (picker hidden, name in the header) and Switch asks the parent page for its entry card.
+  var EMBED = /[?&]embed=1(&|$)/.test(location.search) && window.parent !== window;
+  function setupEmbed() {
+    if (!EMBED) return;
+    document.body.classList.add('embed');
+    if (/[?&]incident=/.test(location.search)) document.body.classList.add('inclock');
+    var b = $('switchBtn'); b.classList.remove('hidden');
+    b.addEventListener('click', function () { try { window.parent.postMessage({ type: 'scat:switch' }, '*'); } catch (e) {} });
+  }
+
   // ---------- boot ----------
   function boot() {
+    setupEmbed();
     takeHandoffPin();
     window.addEventListener('hashchange', takeHandoffPin);
     $('incidentSel').addEventListener('change', function () {

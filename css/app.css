@@ -250,3 +250,26 @@ body.noscroll { overflow: hidden; }
   .box { max-width: 520px; padding: 24px; }
   .box-wide { max-width: 760px; }
 }
+
+/* ---------- Embedded in the WRI SCAT Shoreline page (?embed=1, Caleb 2026-11-20) ----------
+   This header is the only one: logo · incident · Saved · Switch. The incident from the entry card is locked. */
+body.embed .header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
+body.embed.inclock .incbar, body.embed.inclock .incbar-hint { display: none; }
+
+/* ---------- Desktop split (body.split, set by scat-ui.js on wide screen + mouse) ----------
+   Mirrors the dashboard: the map fills the left, the step-by-step questions scroll on the right. */
+body.split main { max-width: none; margin: 0; padding: 0; }
+body.split .dsplit { display: grid; grid-template-columns: minmax(0, 1fr) clamp(400px, 34vw, 560px);
+  height: calc(100vh - var(--dtop, 70px)); height: calc(100dvh - var(--dtop, 70px)); min-height: 480px; }
+body.split .dleft { position: relative; min-width: 0; }
+body.split .dleft .map-wrap { position: absolute; inset: 0; height: auto; margin: 0; border: 0; border-radius: 0; }
+body.split .dright { overflow-y: auto; overscroll-behavior: contain; padding: 18px 22px 0; border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; }
+body.split .dright > * { flex: none; }
+body.split .dright .card { margin-left: 0; margin-right: 0; }
+body.split .dright .snav { margin-top: auto; }
+body.split .sq { font-size: 25px; }
+body.split .sq small { font-size: 15px; }
+body.split .tiles, body.split .tiles.one { grid-template-columns: 1fr; gap: 12px; }
+body.split .tile { min-height: 84px; font-size: 19px; padding: 16px 18px; }
+body.split .btn-big { min-height: 64px; font-size: 18px; }
