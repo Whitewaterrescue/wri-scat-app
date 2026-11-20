@@ -10,7 +10,7 @@
  *
  * APP_VERSION must equal the ?v= stamps in index.html; bump both together.
  */
-var APP_VERSION = '2026-11-20-6';
+var APP_VERSION = '2026-11-20-7';
 var CACHE = 'wri-scat-' + APP_VERSION;
 var LIB_CACHE = 'wri-scat-lib-leaflet-1.9.4';
 var REF_VERSION = '2026-10-30-a';                 // the reference-photo pack (ref/index.json "version"); bump when the pack changes
@@ -96,7 +96,9 @@ self.addEventListener('fetch', function (e) {
     var timer = setTimeout(function () {
       fromCache().then(function (hit) { if (hit && !settled) { settled = true; resolve(hit); } });
     }, 8000);
-    fetch(req).then(function (r) {
+    // no-cache = always revalidate with the server (a cheap 304 when unchanged). Plain fetch obeyed Pages'
+    // max-age=600, so a new release took up to 10 minutes to show even with signal (Caleb 2026-11-20).
+    fetch(req, { cache: 'no-cache' }).then(function (r) {
       clearTimeout(timer);
       if (r.ok) { var copy = r.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
       if (!settled) { settled = true; resolve(r); }
