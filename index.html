@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
-  <link rel="stylesheet" href="css/app.css?v=2026-11-20-12">
+  <link rel="stylesheet" href="css/app.css?v=2026-11-24-1">
 </head>
 <body>
   <header class="header">
@@ -25,6 +25,8 @@
       <h1 id="viewTitle" class="hinc"></h1>
       <button class="hdr-btn" id="savedBtn" type="button">Saved <span id="savedCount"></span></button>
       <!-- embedded in the WRI SCAT Shoreline page (?embed=1): back to its entry card -->
+      <!-- desktop: Drone = this survey beside the WRI drone live stream (drone.html); there: Exit drone -->
+      <button class="hdr-btn hidden" id="droneBtn" type="button">Drone</button>
       <button class="hdr-btn hidden" id="switchBtn" type="button">Switch</button>
     </div>
   </header>
@@ -67,7 +69,9 @@
       <div class="sq" id="scWhereQ">Where are you?<small>Use your location, then tap your segment. One is enough.</small></div>
       <button class="btn btn-gps btn-big" id="scGps" type="button">📍 Use My Location</button>
       <div class="coords" id="scCoords">No location yet</div>
-      <div class="map-wrap"><div id="scMap"></div><div class="map-msg" id="scMapMsg">Map needs signal. Use GPS or type the coordinates.</div></div>
+      <div class="map-wrap"><div id="scMap"></div><div class="map-msg" id="scMapMsg">Map needs signal. Use GPS or type the coordinates.</div>
+        <!-- Drone SCAT (?drone=1): the incident's drones on this map + drop a point under the selected one -->
+        <div class="dronebar hidden" id="scDroneBar"><span id="scDroneTxt"></span><select id="scDronePick" class="hidden" aria-label="Drone"></select><label class="dfollow"><input type="checkbox" id="scDroneFollow" checked> Follow</label><button type="button" class="hdr-btn" id="scDroneUse" disabled>&#128205; Use drone position</button></div></div>
       <div class="hint center">Tap the map to drop or move the point.</div>
       <!-- WRI fork 2026-11-17: after a point is dropped the nearest segment is picked and the crew confirms it -->
       <div class="segask hidden" id="scSegAsk"></div>
@@ -304,12 +308,12 @@
 
   <div class="toast hidden" id="toast"></div>
 
-  <script src="js/config.js?v=2026-11-20-12"></script>
-  <script src="js/store.js?v=2026-11-20-12"></script>
-  <script src="js/api.js?v=2026-11-20-12"></script>
-  <script src="js/outbox.js?v=2026-11-20-12"></script>
-  <script src="js/forms.js?v=2026-11-20-12"></script>
-  <script src="js/shell.js?v=2026-11-20-12"></script>
+  <script src="js/config.js?v=2026-11-24-1"></script>
+  <script src="js/store.js?v=2026-11-24-1"></script>
+  <script src="js/api.js?v=2026-11-24-1"></script>
+  <script src="js/outbox.js?v=2026-11-24-1"></script>
+  <script src="js/forms.js?v=2026-11-24-1"></script>
+  <script src="js/shell.js?v=2026-11-24-1"></script>
   <!-- Reference photos (NOAA job aid): one sheet shared by every tile screen; see ref/README.md -->
   <div class="refsheet hidden" id="scRefSheet">
     <div class="refpanel">
@@ -318,9 +322,9 @@
       <div class="refcredit" id="scRefCredit"></div>
     </div>
   </div>
-  <script src="js/scat-ref.js?v=2026-11-20-12"></script>
-  <script src="js/scat-packet.js?v=2026-11-20-12"></script>
-  <script src="js/scat-ui.js?v=2026-11-20-12"></script>
+  <script src="js/scat-ref.js?v=2026-11-24-1"></script>
+  <script src="js/scat-packet.js?v=2026-11-24-1"></script>
+  <script src="js/scat-ui.js?v=2026-11-24-1"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });

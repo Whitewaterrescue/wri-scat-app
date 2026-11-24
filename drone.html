@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#171919">
+<title>WRI Drone SCAT</title>
+<!--
+  Drone SCAT (Caleb 2026-11-24): a SCAT observer at a desk watches the WRI drone live stream and files SCAT
+  records from what it shows.
+    left  = https://drone.whitewaterrescue.com/live?embed=1&page=live -- the same drone page the Field App's
+            Drone > Livestream carries (video, aircraft status, and with the WRI crew PIN typed into ITS box:
+            start/stop video + camera & gimbal control). It only accepts its sign-in hand-off (wri-live-auth)
+            from https://whitewaterrescue.github.io, which is why this page lives here and not in Apps Script.
+    right = this app (index.html?embed=1&drone=1): map on every step with the incident's drones on it
+            (WRI_Incident_Ops Drone_Position via the SCAT API), 'Use drone position', surveys default to Drone.
+  Opened by the SCAT Shoreline page (its field-app frame swaps to this; the incident Gateway PIN rides in the
+  #hash, never the query) or by the app's own Drone button. The incident PIN goes to the drone page in ITS
+  #hash too (watch only); the crew PIN is never passed -- the operator types it into the drone page.
+  Messages: the app's 'scat:switch' / 'scat:drone' (Exit drone) go up to the SCAT Shoreline page when we are
+  framed by it; on our own, Exit drone goes back to index.html.
+-->
+<style>
+  :root { --bg: #171919; --panel: #2a2c2c; --line: #55595a; --text: #f0f0f0; --muted: #b8bcbc; --red: #EC2329; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color-scheme: dark; }
+  #wrap { display: grid; height: 100%; grid-template-columns: minmax(320px, var(--left, 58%)) 8px minmax(380px, 1fr); }
+  .pane { position: relative; min-width: 0; min-height: 0; background: #000; }
+  .pane iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  #scat { background: var(--bg); }
+  #grip { background: var(--panel); border-left: 1px solid var(--line); border-right: 1px solid var(--line); cursor: col-resize; position: relative; }
+  #grip::after { content: ''; position: absolute; left: 2px; right: 2px; top: 50%; height: 44px; margin-top: -22px; border-radius: 2px;
+    background: repeating-linear-gradient(to bottom, var(--muted) 0 2px, transparent 2px 6px); opacity: .6; }
+  #grip:hover, body.drag #grip { background: #3a3c3c; }
+  body.drag iframe { pointer-events: none; }   /* the frames would swallow the drag */
+  #msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center;
+    color: var(--muted); font-size: 15px; line-height: 1.5; }
+  #msg b { color: var(--text); }
+  /* too narrow for side by side (small laptop window): stack, video on top */
+  @media (max-width: 860px) {
+    #wrap { grid-template-columns: 1fr; grid-template-rows: 40% 0 1fr; }
+    #grip { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="pane" id="drone"><div id="msg">Loading the drone live stream…</div></div>
+  <div id="grip" role="separator" aria-orientation="vertical" title="Drag to resize"></div>
+  <div class="pane" id="scat"></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var DRONE_SERVER = 'https://drone.whitewaterrescue.com';
+  var SPLIT_KEY = 'wri_scat_drone_split';
+  var q = new URLSearchParams(location.search);
+  var incident = (q.get('incident') || '').trim();
+  var role = q.get('role') === 'manager' ? 'manager' : 'crew';
+  // the incident PIN from the #hash: used once, then dropped from the address bar
+  var pin = '';
+  var m = /[#&]pin=([^&]*)/.exec(location.hash || '');
+  if (m) { try { pin = decodeURIComponent(m[1]).trim(); } catch (e) {} }
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  var framed = window.parent !== window;
+
+  if (!incident) {
+    document.getElementById('msg').innerHTML = '<span><b>No incident picked.</b><br>Open Drone SCAT from the SCAT Shoreline page or the SCAT app\'s Drone button.</span>';
+    return;
+  }
+
+  // ---- left: the drone page ----
+  var dFrame = document.createElement('iframe');
+  dFrame.title = 'WRI drone live stream';
+  dFrame.setAttribute('allow', 'autoplay; fullscreen');
+  dFrame.setAttribute('allowfullscreen', '');
+  dFrame.src = DRONE_SERVER + '/live?embed=1&page=live' + (pin ? '#pin=' + encodeURIComponent(pin) + '&inc=' + encodeURIComponent(incident) : '');
+  dFrame.addEventListener('load', function () { var x = document.getElementById('msg'); if (x) x.remove(); });
+  document.getElementById('drone').appendChild(dFrame);
+  // the drone page waits for its hand-off: which incident (no ArcGIS token here -> it signs in with the #pin,
+  // else shows its PIN box; the WRI crew PIN typed there turns on camera + gimbal control)
+  function auth() { try { dFrame.contentWindow.postMessage({ type: 'wri-live-auth', agol_token: null, incident: incident }, DRONE_SERVER); } catch (e) {} }
+
+  // ---- right: the SCAT app in drone mode ----
+  var sFrame = document.createElement('iframe');
+  sFrame.title = 'SCAT field app';
+  sFrame.setAttribute('allow', 'geolocation; camera; clipboard-write');
+  sFrame.src = 'index.html?incident=' + encodeURIComponent(incident) + '&embed=1&drone=1&role=' + role + (pin ? '#pin=' + encodeURIComponent(pin) : '');
+  document.getElementById('scat').appendChild(sFrame);
+
+  window.addEventListener('message', function (e) {
+    var d = e.data || {};
+    if (e.origin === DRONE_SERVER && e.source === dFrame.contentWindow) {
+      if (d.type === 'wri-live-ready') auth();
+      return;
+    }
+    if (e.origin !== location.origin || e.source !== sFrame.contentWindow) return;
+    if (d.type === 'scat:switch' || d.type === 'scat:drone') {
+      if (framed) { try { window.parent.postMessage({ type: d.type, on: !!d.on }, '*'); } catch (x) {} return; }
+      if (d.type === 'scat:drone' && !d.on) location.href = 'index.html?incident=' + encodeURIComponent(incident);
+    }
+  });
+
+  // ---- divider: drag to resize, remembered per browser ----
+  var wrap = document.getElementById('wrap'), grip = document.getElementById('grip');
+  function setLeft(pct) { pct = Math.max(30, Math.min(75, pct)); wrap.style.setProperty('--left', pct + '%'); return pct; }
+  try { var saved = Number(localStorage.getItem(SPLIT_KEY)); if (saved) setLeft(saved); } catch (e) {}
+  grip.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); grip.setPointerCapture(e.pointerId); document.body.classList.add('drag');
+    var last = null;
+    function move(ev) { last = setLeft(ev.clientX / window.innerWidth * 100); }
+    function up() {
+      grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+      document.body.classList.remove('drag');
+      if (last != null) { try { localStorage.setItem(SPLIT_KEY, String(Math.round(last))); } catch (x) {} }
+    }
+    grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  });
+})();
+</script>
+</body>
+</html>

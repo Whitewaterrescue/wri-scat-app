@@ -29,6 +29,9 @@
   var A, $, S;
   var cfg = null, F = null, advancing = null;
   var PHASE_KEY = 'wri_scat_phase', STICKY_KEY = 'wri_scat_sticky';
+  // Drone SCAT (Caleb 2026-11-24): ?drone=1 = this page sits beside the WRI drone live stream (drone.html).
+  // The map stays up on every step, the incident's drones are drawn on it, and surveys default to 'Drone'.
+  var DRONE = /[?&]drone=1(&|$)/.test(location.search) && window.parent !== window;
   var YN = [{ code: 'yes', label: 'Yes' }, { code: 'no', label: 'No' }];
   var YN_GOOD = { yes: 'green', no: 'red' }, YN_BAD = { yes: 'red', no: 'green' };
   var LETTER_TONE = { A: 'green', B: 'blue', C: 'amber', D: 'red', I: 'grey', '-': 'grey' };
@@ -207,6 +210,7 @@
         hazards: [], hazard_note: '', zones: [], pits: [], wildlife: [], wildlife_oiled: '', issues: [], oil_category: '', containment: '',
         str: { recommended: [], rationale: '' } });
       Object.keys(st).forEach(function (k) { if (k in f) f[k] = st[k]; });
+      if (DRONE) f.survey_method = ['uav'];   // watching the drone feed; the sticky choice is left alone
     }
     return f;
   }
@@ -509,10 +513,10 @@
     var js = document.createElement('script'); js.src = ARCGIS;
     js.onload = function () {
       window.require(['esri/Map', 'esri/Basemap', 'esri/views/MapView', 'esri/layers/FeatureLayer', 'esri/layers/GraphicsLayer',
-        'esri/layers/TileLayer', 'esri/Graphic', 'esri/renderers/support/jsonUtils', 'esri/layers/support/LabelClass'],
-      function (Map, Basemap, MapView, FeatureLayer, GraphicsLayer, TileLayer, Graphic, rendererJson, LabelClass) {
+        'esri/layers/TileLayer', 'esri/Graphic', 'esri/renderers/support/jsonUtils', 'esri/layers/support/LabelClass', 'esri/geometry/Point'],
+      function (Map, Basemap, MapView, FeatureLayer, GraphicsLayer, TileLayer, Graphic, rendererJson, LabelClass, Point) {
         AG = { Map: Map, Basemap: Basemap, MapView: MapView, FeatureLayer: FeatureLayer, GraphicsLayer: GraphicsLayer,
-               TileLayer: TileLayer, Graphic: Graphic, rendererJson: rendererJson, LabelClass: LabelClass };
+               TileLayer: TileLayer, Graphic: Graphic, rendererJson: rendererJson, LabelClass: LabelClass, Point: Point };
         done();
       });
     };
@@ -560,6 +564,7 @@
         $('scMapMsg').classList.add('hidden');
         placeMarker();
         drawSegLines();
+        if (DRONE) { view.on('drag', function () { setFollow(false); }); drawDrones(); }
       } catch (err) { view = null; map = null; }
     });
   }
@@ -642,7 +647,7 @@
   }
   function setLoc(target, lat, lon, acc, from, coordsId, latId, lonId) {
     target.lat = Number(lat); target.lon = Number(lon); target.acc = acc == null ? null : Math.round(acc);
-    $(coordsId).textContent = target.lat.toFixed(6) + ', ' + target.lon.toFixed(6) + (target.acc != null ? '  ± ' + target.acc + ' m' : '') + (from === 'map' ? '  (from the map)' : '');
+    $(coordsId).textContent = target.lat.toFixed(6) + ', ' + target.lon.toFixed(6) + (target.acc != null ? '  ± ' + target.acc + ' m' : '') + (from === 'map' ? '  (from the map)' : from === 'drone' ? '  (drone position)' : '');
     if (from !== 'typed' && latId) {   // inputs hold magnitudes; the hemisphere toggles hold the sign
       $(latId).value = Math.abs(target.lat).toFixed(6); $(lonId).value = Math.abs(target.lon).toFixed(6);
       [].forEach.call($('scLatHemi').children, function (b) { b.classList.toggle('active', b.dataset.val === (target.lat < 0 ? 'S' : 'N')); });
@@ -1099,6 +1104,7 @@
   }
   function render() {
     if (!F) return;
+    if (DRONE) renderDroneBar();   // 'Use drone position' follows the step
     var s = cur();
     if (!F.phase) { showPhase(); return; }
     $('scPhaseName').textContent = F.phase === 'recon' ? 'Recon SCAT' : F.phase === 'endpoint' ? 'Endpoint Review' : 'SCAT Survey';
@@ -1257,7 +1263,7 @@
       });
     } else {
       var st = sticky();
-      SURVEY.forEach(function (s) { if (s.sticky && s.field) st[s.field] = F[s.field]; });
+      SURVEY.forEach(function (s) { if (s.sticky && s.field && !(DRONE && s.field === 'survey_method')) st[s.field] = F[s.field]; });
       st.team_id = F.team_id; st.team_members = F.team_members; A.lsSet(STICKY_KEY, JSON.stringify(st));
       var skipKeys = ['i', 'sub', 'segment', 'segmentLabel', 'bank', 'lat', 'lon', 'acc', 'captured', 'photos', 'skipped', 'team', 'name', 'org', 'notes', 'phase', 'zones', 'pits', 'str'];
       Object.keys(F).forEach(function (k) { if (skipKeys.indexOf(k) < 0) fields[k] = F[k]; });
@@ -1355,7 +1361,7 @@
   // ---------- desktop split (Caleb 2026-11-20): big map left on every step, the questions on the right ----------
   // Same media query as the desktop CSS; decided once at load (phones never match). The Where step's map
   // is moved into the left column before the map is created, so there is still exactly one map.
-  var SPLIT = !!(window.matchMedia && matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches);
+  var SPLIT = DRONE || !!(window.matchMedia && matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches);
   function deskSplit() {
     var main = document.querySelector('main.view[data-view="scat"]'), mw = main && main.querySelector('.map-wrap');
     if (!SPLIT || !mw) { SPLIT = false; return; }
@@ -1364,6 +1370,7 @@
     while (main.firstChild) right.appendChild(main.firstChild);
     left.appendChild(mw); wrap.appendChild(left); wrap.appendChild(right); main.appendChild(wrap);
     document.body.classList.add('split');
+    if (DRONE) document.body.classList.add('drone');   // stacked: map on top, questions below (narrow column)
     var fit = function () { document.documentElement.style.setProperty('--dtop', Math.round(wrap.getBoundingClientRect().top + (window.scrollY || 0)) + 'px'); };
     fit(); window.addEventListener('resize', fit); setTimeout(fit, 400);
     window.addEventListener('outbox:changed', function () { setTimeout(fit, 50); });   // banner above can come and go
@@ -1401,6 +1408,115 @@
         renderApiStatus();
       }).catch(function (e) { apiState.ok = false; apiState.msg = e && e.message ? e.message : String(e); renderApiStatus(); });
     }).catch(function () {});
+  }
+
+  // ---------- Drone SCAT (Caleb 2026-11-24) ----------
+  // The WRI drone server writes each aircraft's position to WRI_Incident_Ops Drone_Position (~5 s); the SCAT API
+  // (scat_drones) hands this incident's rows to us. Drawn on the map: aircraft = arrow turned to its heading,
+  // dashed line = the current flight. 'Use drone position' drops the aircraft's ground point on the current
+  // step (Where / zone / pit / survey end) -- the spot UNDER the drone, not where the camera points.
+  var droneLyr = null, droneData = { drones: [], tracks: [] }, droneTimer = null, droneFollow = true, droneSel = '', droneMsg = '';
+  var DRONE_POLL_MS = 5000;
+  function liveDrones() { return droneData.drones.filter(function (d) { return d.live; }); }
+  function droneCur() {
+    var live = liveDrones();
+    return live.filter(function (d) { return d.sn === droneSel; })[0] || live.filter(function (d) { return d.flying; })[0] || live[0] || null;
+  }
+  function setFollow(on) { droneFollow = !!on; var c = $('scDroneFollow'); if (c) c.checked = droneFollow; }
+  function dronePoll() {
+    clearTimeout(droneTimer);
+    if (!DRONE) return;
+    if (document.visibilityState !== 'visible' || !S.incident || !CONFIG.SCAT_API) { droneTimer = setTimeout(dronePoll, DRONE_POLL_MS); return; }
+    Promise.all([Outbox.scopedPinFor(SCOPE), Store.deviceId()]).then(function (a) {
+      if (!a[0]) throw new Error('Enter the incident PIN to see the drones.');
+      return Api.post('scat_drones', { pin: a[0], device: a[1], incident_id: S.incident.incident_id }, 15000, CONFIG.SCAT_API);
+    }).then(function (d) {
+      droneData = { drones: d.drones || [], tracks: d.tracks || [] }; droneMsg = '';
+    }, function (e) { droneMsg = 'Drone positions: ' + (e && e.message ? e.message : String(e)); }).then(function () {
+      drawDrones(); renderDroneBar();
+      clearTimeout(droneTimer); droneTimer = setTimeout(dronePoll, DRONE_POLL_MS);
+    });
+  }
+  function drawDrones() {
+    if (!view || !AG || !map) return;
+    if (!droneLyr) { droneLyr = new AG.GraphicsLayer({ title: 'Drones' }); map.add(droneLyr); }
+    droneLyr.removeAll();
+    var sr = { wkid: 4326 }, sel = droneCur();
+    droneData.tracks.forEach(function (t) {
+      droneLyr.add(new AG.Graphic({ geometry: { type: 'polyline', paths: t.paths, spatialReference: sr },
+        symbol: { type: 'simple-line', color: [236, 35, 41, 0.85], width: 2.5, style: 'short-dash' } }));
+    });
+    droneData.drones.forEach(function (d) {
+      var pt = { type: 'point', longitude: d.lon, latitude: d.lat }, on = d === sel;
+      droneLyr.add(new AG.Graphic({ geometry: pt, symbol: { type: 'simple-marker', style: 'path',
+        path: 'M0 -12 L8 10 L0 5 L-8 10 Z', size: on ? 28 : 22, angle: d.heading || 0,
+        color: d.live ? (on ? [236, 35, 41] : [255, 140, 140]) : [150, 150, 150], outline: { color: [255, 255, 255], width: 1.5 } } }));
+      var ft = d.alt_m != null ? ' · ' + Math.round(d.alt_m * 3.28084) + ' ft' : '';
+      droneLyr.add(new AG.Graphic({ geometry: pt, symbol: { type: 'text', text: (d.model || 'Drone') + (d.live ? ft : ' · offline'),
+        color: [255, 255, 255], haloColor: [0, 0, 0, 0.85], haloSize: 1.5, yoffset: -24, font: { size: 11, weight: 'bold' } } }));
+    });
+    // follow: recentre only when the aircraft nears the edge (no jitter every 5 s)
+    if (droneFollow && sel && AG.Point) {
+      var sp = view.toScreen(new AG.Point({ longitude: sel.lon, latitude: sel.lat }));
+      if (!sp || sp.x < view.width * 0.2 || sp.x > view.width * 0.8 || sp.y < view.height * 0.2 || sp.y > view.height * 0.8)
+        view.goTo({ center: [sel.lon, sel.lat] }, { animate: true }).catch(function () {});
+    }
+  }
+  function renderDroneBar() {
+    var bar = $('scDroneBar'); if (!bar || !DRONE) return;
+    bar.classList.remove('hidden');
+    var live = liveDrones(), d = droneCur(), sec = F && F.phase ? cur().section : '';
+    var takes = !!(F && F.phase && (sec === 'zonegps' || (sec === 'extent' && !F.sub) || (!F.sub && sec === 'where')));
+    var txt = droneMsg ? droneMsg : !live.length ? 'No drone reporting for this incident.'
+      : (d.model || 'Drone') + (d.pilot ? ' · ' + d.pilot : '') + (d.alt_m != null ? ' · ' + Math.round(d.alt_m * 3.28084) + ' ft' : '') +
+        (d.battery != null ? ' · ' + d.battery + '%' : '');
+    $('scDroneTxt').textContent = txt;
+    $('scDroneTxt').classList.toggle('err', !!droneMsg);
+    var pick = $('scDronePick');
+    if (live.length > 1) {
+      var h = live.map(function (x) { return '<option value="' + A.esc(x.sn) + '"' + (x === d ? ' selected' : '') + '>' + A.esc((x.model || 'Drone') + (x.pilot ? ' · ' + x.pilot : '')) + '</option>'; }).join('');
+      if (pick.dataset.h !== h) { pick.innerHTML = h; pick.dataset.h = h; }
+      pick.classList.remove('hidden');
+    } else pick.classList.add('hidden');
+    var use = $('scDroneUse');
+    use.disabled = !d || !takes;
+    use.title = !d ? 'No live drone' : !takes ? 'This step does not take a point' : 'Drop the point under the drone';
+  }
+  function droneUse() {
+    var d = droneCur(); if (!d || !F || !F.phase) return;
+    var sec = cur().section;
+    if (sec === 'zonegps' || (sec === 'extent' && !F.sub)) mapPoint(sec, d.lat, d.lon);
+    else if (!F.sub && sec === 'where') setLoc(F, d.lat, d.lon, null, 'drone', 'scCoords', 'scLat', 'scLon');
+    else return;
+    A.toast('Point set under the drone. Click the map to move it onto what the camera shows.', 4000);
+  }
+  // header button: Drone (desktop) <-> Exit drone. Embedded in the SCAT Shoreline page = ask it to swap its frame
+  // (it holds the session + PIN); on its own = open drone.html here with this incident + the saved PIN.
+  function setupDroneBtn() {
+    var b = $('droneBtn'); if (!b) return;
+    var desk = !!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches);
+    if (!DRONE && !desk) return;
+    b.textContent = DRONE ? 'Exit drone' : 'Drone';
+    b.classList.remove('hidden');
+    b.addEventListener('click', function () {
+      if (DRONE) { try { window.parent.postMessage({ type: 'scat:drone', on: false }, location.origin); } catch (e) {} return; }
+      if (window.parent !== window && /[?&]embed=1(&|$)/.test(location.search)) { try { window.parent.postMessage({ type: 'scat:drone', on: true }, '*'); } catch (e) {} return; }
+      if (!S.incident) { A.toast('Pick the incident at the top first.'); return; }
+      Outbox.scopedPinFor(SCOPE).then(function (pin) {
+        location.href = 'drone.html?incident=' + encodeURIComponent(S.incident.incident_id) + (pin ? '#pin=' + encodeURIComponent(pin) : '');
+      });
+    });
+  }
+  function setupDrone() {
+    setupDroneBtn();
+    if (!DRONE) return;
+    $('scDroneUse').addEventListener('click', droneUse);
+    $('scDroneFollow').addEventListener('change', function () { setFollow(this.checked); if (droneFollow) drawDrones(); });
+    $('scDronePick').addEventListener('change', function () { droneSel = this.value; setFollow(true); drawDrones(); renderDroneBar(); });
+    window.addEventListener('incident:changed', function () { droneData = { drones: [], tracks: [] }; dronePoll(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') dronePoll(); });
+    renderDroneBar();
+    dronePoll();
   }
 
   // ---------- boot ----------
@@ -1529,6 +1645,7 @@
     var mainEl = document.querySelector('main.view[data-view="scat"]');
     if (mainEl) mainEl.insertBefore($('scPhaseTabs'), mainEl.firstChild);
     deskSplit();
+    setupDrone();
     loadCfg().then(function () { if (SPLIT) { initMap(); drawSegLines(); } });
     window.addEventListener('online', function () { if (SPLIT) setTimeout(function () { initMap(); drawSegLines(); }, 1500); });
     go(0);

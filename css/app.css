@@ -328,3 +328,19 @@ body.split .card { font-size: 13px; padding: 10px; }
 body[data-phase="recon"] .sprog > div { background: #f0a500; }
 body[data-phase="survey"] .sprog > div { background: #3b82f6; }
 body[data-phase="endpoint"] .sprog > div { background: #2ecc71; }
+
+/* ---------- Drone SCAT (?drone=1, Caleb 2026-11-24): this page is the right-hand column of drone.html ----------
+   Narrow column: map on top on every step (the drone + its track drawn on it), questions scroll below. */
+body.drone .header { padding-left: 10px; padding-right: 10px; }
+body.split.drone .dsplit { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(220px, 44%) minmax(0, 1fr); }
+body.split.drone .dright { border-left: 0; border-top: 1px solid var(--line); padding: 10px 14px 0; }
+body.split.drone .tiles, body.split.drone .tiles.one { grid-template-columns: 1fr 1fr; }
+.dronebar { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  background: rgba(20, 22, 24, 0.88); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; font-size: 13px; }
+.dronebar #scDroneTxt { flex: 1 1 140px; min-width: 0; color: var(--text); }
+.dronebar #scDroneTxt.err { color: #ff9a9d; }
+.dronebar select { width: auto; font-size: 13px; padding: 5px 8px; }
+.dronebar .dfollow { display: flex; align-items: center; gap: 4px; font-size: 13px; margin: 0; cursor: pointer; white-space: nowrap; }
+.dronebar .dfollow input { width: auto; margin: 0; }
+.dronebar .hdr-btn { padding: 7px 12px; font-size: 13px; }
+.dronebar .hdr-btn:disabled { opacity: 0.45; cursor: default; }
